@@ -1,0 +1,36 @@
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      - echo Logging in to Amazon ECR...
+      - aws --version
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $REPOSITORY_URI
+      - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+      - IMAGE_TAG=${COMMIT_HASH:=latest}
+  build:
+    commands:
+      - echo Build started on `date`
+      - echo Building the Docker image...
+      - |-
+        docker build -t $REPOSITORY_URI:latest \
+        --build-arg VITE_STRIPE_PUBLISHABLE_KEY=$VITE_STRIPE_PUBLISHABLE_KEY \
+        --build-arg VITE_API_URL=$VITE_API_URL \
+        --build-arg LAST_COMMIT_HASH=$CODEBUILD_RESOLVED_SOURCE_VERSION \
+        --build-arg NODE_ENV=production \
+        .
+      - docker tag $REPOSITORY_URI:latest $REPOSITORY_URI:$IMAGE_TAG
+  post_build:
+    commands:
+      - echo Build completed on `date`
+      - echo Pushing the Docker images...
+      - docker push $REPOSITORY_URI:latest
+      - docker push $REPOSITORY_URI:$IMAGE_TAG
+      - echo Writing image definitions file...
+      - printf '[{"name":"mycare-pricing-app","imageUri":"%s"}]' $REPOSITORY_URI:$IMAGE_TAG > imagedefinitions.json
+      - sed -e "s|<IMAGE_URI>|$REPOSITORY_URI:$IMAGE_TAG|g" Dockerrun.aws.json.example > Dockerrun.aws.json
+
+artifacts:
+  files:
+    - imagedefinitions.json
+    - Dockerrun.aws.json

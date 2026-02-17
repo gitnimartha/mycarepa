@@ -1,0 +1,148 @@
+#!groovy
+@Library('jenkinsLibrary@master') _
+
+/**
+ * My Care Pricing App - Infrastructure Pipeline
+ *
+ * This pipeline provisions/updates AWS infrastructure for the pricing app:
+ * - ECR Repository
+ * - ECS Cluster, Service, Task Definition
+ * - Application Load Balancer
+ * - Security Groups
+ * - CloudWatch Log Groups
+ * - Secrets Manager entries
+ *
+ * Based on: jenkins-pipelines/AWS/Terraform/ECS-App.Jenkinsfile
+ */
+
+pipeline {
+    agent any
+
+    options {
+        disableConcurrentBuilds()
+        timestamps()
+        withAWS(credentials: env.OVERRIDE_AWS_CREDENTIALS ?: env.AWS_CREDENTIALS)
+    }
+
+    parameters {
+        booleanParam(name: "WIPE_WORKSPACE", defaultValue: false, description: "Wipe the job workspace before the git checkout and build.")
+        string(name: "BRANCH", defaultValue: "master", description: "LM-Terraform branch to use")
+        string(name: "LM_DEVOPS_CONFIG_BRANCH", defaultValue: "master", description: "LM-Devops-Config branch to use")
+        choice(name: "TF_COMMAND", choices: ["PLAN", "APPLY", "DESTROY"], description: "Terraform Command to use")
+    }
+
+    environment {
+        RESOURCE_NAME = "mycare-pricing-app"
+        APP_NAME = "mycare-pricing-app"
+    }
+
+    stages {
+        stage("Workspace cleanup") {
+            when {
+                environment name: "WIPE_WORKSPACE", value: "true"
+            }
+            steps {
+                cleanWs()
+            }
+        }
+
+        stage("Load Library") {
+            steps {
+                script {
+                    library "utils@${env.SHARED_LIBRARY_VERSION ?: env.GIT_BRANCH}"
+                    currentBuild.displayName = "#${env.BUILD_NUMBER}_${params.BRANCH}_${env.ENVIRONMENT}_${env.RESOURCE_NAME}_${params.TF_COMMAND}"
+                    IMAGE_NAME = "lm-terragrunt:${params.BRANCH}"
+                }
+            }
+        }
+
+        stage("Environment preparation") {
+            steps {
+                script {
+                    // Install yq and jq inside the container
+                    sh 'wget -qO yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 && chmod +x yq'
+                    sh 'wget -qO jq https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64 && chmod +x jq'
+
+                    dir('lm-devops-configs') {
+                        gitCheckout branch: params.LM_DEVOPS_CONFIG_BRANCH, url: getRepoUrl("LMDevopsConfigs")
+                    }
+                    gitCheckout branch: params.BRANCH, url: getRepoUrl("LMTerraform")
+                    sh "cp .env.example .env"
+                }
+            }
+        }
+
+        stage("Extracting tfvars") {
+            steps {
+                script {
+                    def APPLICATION_CONFIG_YAML = "lm-devops-configs/terraform/envs/${env.ENVIRONMENT}/${env.RESOURCE_NAME}.yaml"
+                    def TFVARS_JSON = "terragrunt/${env.RESOURCE_NAME}/terraform.tfvars.json"
+
+                    // Extract `tfvars-json` for terraform.tfvars.json
+                    sh """
+                    ./yq -o=json '.["${env.RESOURCE_NAME}"]["tfvars-json"]' ${APPLICATION_CONFIG_YAML} | jq '.' > ${TFVARS_JSON}
+                    """
+
+                    // Extract envvars for .env
+                    sh """
+                        ./yq '.["${env.RESOURCE_NAME}"].envvars | to_entries | .[] | .key + "=" + .value' ${APPLICATION_CONFIG_YAML} >> .env
+                        echo "IMAGE_NAME=${IMAGE_NAME}" >> .env
+                        echo "BRANCH=${params.BRANCH}" >> .env
+                    """
+
+                    // Get workspace from config
+                    TG_WORKSPACE = sh(script: "grep '^TG_WORKSPACE=' .env | tail -1 | cut -d '=' -f2", returnStdout: true).trim()
+                    env.TG_WORKSPACE = TG_WORKSPACE
+                }
+            }
+        }
+
+        stage("Terraform deployment") {
+            steps {
+                script {
+                    if (params.TF_COMMAND == "PLAN") {
+                        terraform.plan(AWS, IMAGE_NAME, env.TG_WORKSPACE, env.RESOURCE_NAME)
+                    } else if (params.TF_COMMAND == "APPLY") {
+                        terraform.apply(AWS, IMAGE_NAME, env.TG_WORKSPACE, env.RESOURCE_NAME)
+                    } else if (params.TF_COMMAND == "DESTROY") {
+                        // Only allow destroy with explicit confirmation
+                        input message: "Are you sure you want to DESTROY the infrastructure?", ok: "Yes, destroy it"
+                        terraform.destroy(AWS, IMAGE_NAME, env.TG_WORKSPACE, env.RESOURCE_NAME)
+                    }
+                }
+            }
+        }
+
+        stage("Notify Team") {
+            steps {
+                script {
+                    echo "Infrastructure deployment completed for ${env.RESOURCE_NAME}"
+                    if (env.SLACK_WEBHOOK_URL) {
+                        def status = params.TF_COMMAND == "DESTROY" ? "destroyed" : "provisioned"
+                        slackSend(
+                            color: params.TF_COMMAND == "DESTROY" ? 'warning' : 'good',
+                            message: "${params.TF_COMMAND} completed for ${env.RESOURCE_NAME} in ${env.ENVIRONMENT}"
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        failure {
+            script {
+                echo "Infrastructure deployment failed!"
+                if (env.SLACK_WEBHOOK_URL) {
+                    slackSend(
+                        color: 'danger',
+                        message: "❌ Infrastructure ${params.TF_COMMAND} failed for ${env.RESOURCE_NAME}\nBuild: ${env.BUILD_URL}"
+                    )
+                }
+            }
+        }
+        always {
+            cleanWs()
+        }
+    }
+}

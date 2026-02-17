@@ -1,0 +1,355 @@
+h1. Pricing App - Technical Documentation
+
+{toc:printable=true|style=disc|maxLevel=3|minLevel=1}
+
+----
+
+h2. Overview
+
+A React-based SPA for displaying pricing plans with Stripe payment integration. Built for easy A/B testing with VWO.
+
+||Component||Technology||Version||
+|Frontend|React + TypeScript|19.x|
+|Build Tool|Vite|7.x|
+|Styling|Tailwind CSS|4.x|
+|Backend|Express.js|5.x|
+|Payments|Stripe|20.x|
+
+----
+
+h2. Architecture
+
+h3. System Components
+
+{code}
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│                 │     │                 │     │                 │
+│  React Frontend │────▶│  Express API    │────▶│  Stripe API     │
+│  (Port 5173)    │     │  (Port 3001)    │     │                 │
+│                 │     │                 │     │                 │
+└─────────────────┘     └─────────────────┘     └─────────────────┘
+        │                                               │
+        │                                               │
+        ▼                                               ▼
+┌─────────────────┐                           ┌─────────────────┐
+│  VWO A/B Test   │                           │ Stripe Checkout │
+│  (Optional)     │                           │ (Hosted Page)   │
+└─────────────────┘                           └─────────────────┘
+{code}
+
+h3. Directory Structure
+
+{code}
+pricing-app/
+├── src/
+│   ├── App.tsx              # Main pricing page component
+│   ├── main.tsx             # React entry point
+│   └── index.css            # Tailwind styles
+├── server.js                # Express backend for Stripe
+├── setup-stripe-products.js # Script to create Stripe products
+├── create-price-variant.js  # Script to create price variants
+├── .env                     # Environment variables (DO NOT COMMIT)
+├── .gitignore
+├── package.json
+└── vite.config.ts
+{code}
+
+----
+
+h2. Environment Setup
+
+h3. Prerequisites
+
+* Node.js 18+
+* npm or yarn
+* Stripe account (test mode)
+
+h3. Environment Variables
+
+*File:* {{.env}}
+
+{code:language=bash}
+# Stripe Keys
+VITE_STRIPE_PUBLISHABLE_KEY=pk_test_xxxxx
+STRIPE_SECRET_KEY=sk_test_xxxxx
+
+# Stripe Price IDs
+STRIPE_PRICE_STARTER_MONTHLY=price_xxxxx
+STRIPE_PRICE_STARTER_ANNUAL=price_xxxxx
+STRIPE_PRICE_PROFESSIONAL_MONTHLY=price_xxxxx
+STRIPE_PRICE_PROFESSIONAL_ANNUAL=price_xxxxx
+STRIPE_PRICE_ENTERPRISE_MONTHLY=price_xxxxx
+STRIPE_PRICE_ENTERPRISE_ANNUAL=price_xxxxx
+{code}
+
+{warning}
+Never commit {{.env}} files to version control. The {{.gitignore}} is configured to exclude these files.
+{warning}
+
+----
+
+h2. Installation & Running
+
+h3. Initial Setup
+
+{code:language=bash}
+# Install dependencies
+npm install
+
+# Create Stripe products (first time only)
+node setup-stripe-products.js
+
+# Copy the output Price IDs to your .env file
+{code}
+
+h3. Running the Application
+
+{code:language=bash}
+# Terminal 1: Start frontend
+npm run dev
+
+# Terminal 2: Start backend
+npm run server
+{code}
+
+||Service||URL||Purpose||
+|Frontend|[http://localhost:5173|http://localhost:5173]|Pricing page UI|
+|Backend API|[http://localhost:3001|http://localhost:3001]|Stripe checkout sessions|
+
+----
+
+h2. Stripe Products & Pricing
+
+h3. Current Plans
+
+||Plan||Monthly||Annual||Product ID||
+|Starter|$29/mo|$276/yr ($23/mo)|prod_TzbVhzoHHQrmOm|
+|Professional|$79/mo|$756/yr ($63/mo)|prod_TzbV1Hq1sFFV5A|
+|Enterprise|$199/mo|$1,908/yr ($159/mo)|prod_TzbVgUzY8se1aI|
+
+h3. Creating New Price Variants
+
+Use the helper script to create new price variants for A/B testing:
+
+{code:language=bash}
+# Syntax
+node create-price-variant.js <product> <amount_cents> <interval>
+
+# Examples
+node create-price-variant.js starter 1900 month        # $19/month Starter
+node create-price-variant.js professional 5900 month   # $59/month Pro
+node create-price-variant.js enterprise 14900 month    # $149/month Enterprise
+{code}
+
+----
+
+h2. API Reference
+
+h3. POST /api/create-checkout-session
+
+Creates a Stripe Checkout session and returns the redirect URL.
+
+*Request Body:*
+
+{code:language=json}
+{
+  "plan": "starter",           // Required: starter | professional | enterprise
+  "billingCycle": "monthly",   // Required: monthly | annual
+  "variant": "default",        // Optional: A/B test variant name
+  "priceId": "price_xxxxx"     // Optional: Direct price ID override
+}
+{code}
+
+*Response:*
+
+{code:language=json}
+{
+  "sessionId": "cs_test_xxxxx",
+  "url": "https://checkout.stripe.com/c/pay/cs_test_xxxxx"
+}
+{code}
+
+h3. GET /api/prices
+
+Returns all active prices from Stripe. Useful for dynamic pricing experiments.
+
+*Response:*
+
+{code:language=json}
+[
+  {
+    "id": "price_xxxxx",
+    "product": "Starter Plan",
+    "amount": 2900,
+    "currency": "usd",
+    "interval": "month",
+    "lookup_key": "starter_monthly"
+  }
+]
+{code}
+
+h3. GET /api/session/:sessionId
+
+Retrieves details of a checkout session. Used on the success page.
+
+----
+
+h2. A/B Testing with VWO
+
+h3. Option 1: Display Price Only (Frontend)
+
+Modify displayed prices without changing actual checkout price. Add this in VWO variation:
+
+{code:language=javascript}
+// VWO Variation Code
+(function() {
+  // Override price display
+  const priceElements = document.querySelectorAll('[data-price]');
+  priceElements.forEach(el => {
+    if (el.dataset.plan === 'starter') {
+      el.textContent = '$19';
+    }
+  });
+})();
+{code}
+
+{note}
+This only changes the display. The actual checkout price remains unchanged.
+{note}
+
+h3. Option 2: Direct Price ID Override
+
+Pass a specific Stripe Price ID to charge a different amount:
+
+{code:language=javascript}
+// VWO Variation Code - Override checkout
+(function() {
+  const originalFetch = window.fetch;
+  window.fetch = function(url, options) {
+    if (url.includes('/api/create-checkout-session')) {
+      const body = JSON.parse(options.body);
+      // Override with experiment price
+      body.priceId = 'price_experiment_xxxxx';
+      options.body = JSON.stringify(body);
+    }
+    return originalFetch.apply(this, arguments);
+  };
+})();
+{code}
+
+h3. Option 3: Named Variants (Recommended)
+
+*Step 1:* Add variant in {{server.js}}:
+
+{code:language=javascript}
+const PRICE_VARIANTS = {
+  default: DEFAULT_PRICES,
+
+  // 20% discount experiment
+  experiment_20pct_off: {
+    starter: {
+      monthly: 'price_xxxxx',  // $23/mo
+      annual: 'price_xxxxx'    // $220/yr
+    },
+    professional: {
+      monthly: 'price_xxxxx',  // $63/mo
+      annual: 'price_xxxxx'    // $605/yr
+    },
+    enterprise: {
+      monthly: 'price_xxxxx',  // $159/mo
+      annual: 'price_xxxxx'    // $1527/yr
+    },
+  },
+};
+{code}
+
+*Step 2:* VWO passes variant name:
+
+{code:language=javascript}
+// VWO Variation Code
+(function() {
+  window.PRICING_VARIANT = 'experiment_20pct_off';
+
+  const originalFetch = window.fetch;
+  window.fetch = function(url, options) {
+    if (url.includes('/api/create-checkout-session')) {
+      const body = JSON.parse(options.body);
+      body.variant = window.PRICING_VARIANT;
+      options.body = JSON.stringify(body);
+    }
+    return originalFetch.apply(this, arguments);
+  };
+})();
+{code}
+
+{info}
+The variant name is stored in Stripe session metadata for conversion tracking.
+{info}
+
+----
+
+h2. Testing
+
+h3. Stripe Test Cards
+
+||Scenario||Card Number||Expiry||CVC||
+|Successful payment|4242 4242 4242 4242|Any future date|Any 3 digits|
+|Card declined|4000 0000 0000 0002|Any future date|Any 3 digits|
+|Requires authentication|4000 0025 0000 3155|Any future date|Any 3 digits|
+|Insufficient funds|4000 0000 0000 9995|Any future date|Any 3 digits|
+
+h3. Useful Stripe Dashboard Links
+
+* [Products|https://dashboard.stripe.com/test/products]
+* [Subscriptions|https://dashboard.stripe.com/test/subscriptions]
+* [Payments|https://dashboard.stripe.com/test/payments]
+* [API Logs|https://dashboard.stripe.com/test/logs]
+
+----
+
+h2. Deployment Checklist
+
+* [ ] Replace test Stripe keys with production keys
+* [ ] Update success/cancel URLs to production domain
+* [ ] Create production products/prices in Stripe
+* [ ] Set up Stripe webhooks for subscription events
+* [ ] Configure CORS for production domain
+* [ ] Set up SSL/HTTPS
+* [ ] Add rate limiting to API
+* [ ] Set up monitoring and error tracking
+
+----
+
+h2. Troubleshooting
+
+h3. Common Issues
+
+||Issue||Cause||Solution||
+|CORS error|Frontend and backend on different ports|Backend already has CORS enabled. Check if server is running.|
+|"Price not configured"|Missing Price ID in .env|Run {{setup-stripe-products.js}} and update .env|
+|Checkout redirect fails|Invalid Price ID|Verify Price ID exists in Stripe Dashboard|
+|Page is blank|Vite not running or build error|Check terminal for errors, restart with {{npm run dev}}|
+
+h3. Logs & Debugging
+
+{code:language=bash}
+# Check server logs
+cat server.log
+
+# Test API directly
+curl -X POST http://localhost:3001/api/create-checkout-session \
+  -H "Content-Type: application/json" \
+  -d '{"plan":"starter","billingCycle":"monthly"}'
+
+# List all prices
+curl http://localhost:3001/api/prices
+{code}
+
+----
+
+h2. Contact & Support
+
+||Resource||Link||
+|Stripe Documentation|[https://stripe.com/docs]|
+|VWO Documentation|[https://help.vwo.com]|
+|React Documentation|[https://react.dev]|

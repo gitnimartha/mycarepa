@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  mycare-pricing-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VITE_STRIPE_PUBLISHABLE_KEY: ${VITE_STRIPE_PUBLISHABLE_KEY}
+        VITE_API_URL: ""
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
+      - MYCARE_METER_ID=${MYCARE_METER_ID}
+      - MYCARE_METER_EVENT_NAME=${MYCARE_METER_EVENT_NAME}
+      - MYCARE_PRICE_TRIAL=${MYCARE_PRICE_TRIAL}
+      - MYCARE_PRICE_STARTER_BASE=${MYCARE_PRICE_STARTER_BASE}
+      - MYCARE_PRICE_STARTER_HOURLY=${MYCARE_PRICE_STARTER_HOURLY}
+      - MYCARE_PRICE_PLUS_BASE=${MYCARE_PRICE_PLUS_BASE}
+      - MYCARE_PRICE_PLUS_HOURLY=${MYCARE_PRICE_PLUS_HOURLY}
+      - MYCARE_PRICE_PRO_BASE=${MYCARE_PRICE_PRO_BASE}
+      - MYCARE_PRICE_PRO_HOURLY=${MYCARE_PRICE_PRO_HOURLY}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  # Development with hot reload
+  mycare-pricing-dev:
+    image: node:22-alpine
+    working_dir: /app
+    volumes:
+      - .:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+      - "3001:3001"
+    environment:
+      - NODE_ENV=development
+    command: sh -c "npm install && npm run dev & node server.js"
+    profiles:
+      - dev

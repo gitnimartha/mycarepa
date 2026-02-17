@@ -1,0 +1,75 @@
+# My Care Pricing App - Terraform Configuration
+# Place this file in: lm-devops-configs/terraform/envs/{environment}/mycare-pricing-app.yaml
+#
+# This configuration is used by Jenkinsfile.infrastructure to provision AWS resources.
+
+mycare-pricing-app:
+  # Environment variables for the Jenkins pipeline
+  envvars:
+    TG_WORKSPACE: "mycare-pricing-app"
+    AWS_REGION: "us-east-2"
+
+  # Terraform variables (converted to terraform.tfvars.json)
+  tfvars-json:
+    # Application Settings
+    app_name: "mycare-pricing-app"
+    environment: "staging"  # or "production"
+
+    # ECS Configuration
+    ecs_cluster_name: "mycare-cluster"
+    ecs_service_name: "mycare-pricing-service"
+    ecs_desired_count: 1
+    ecs_min_capacity: 1
+    ecs_max_capacity: 3
+
+    # Task Definition
+    task_cpu: 256
+    task_memory: 512
+    container_port: 3001
+
+    # ECR Repository
+    ecr_repository_name: "mycare-pricing-app"
+
+    # Networking (update with your VPC details)
+    vpc_id: "vpc-xxxxxxxxx"
+    subnet_ids:
+      - "subnet-xxxxxxxxx"
+      - "subnet-yyyyyyyyy"
+    security_group_ids:
+      - "sg-xxxxxxxxx"
+
+    # Load Balancer
+    alb_enabled: true
+    alb_name: "mycare-pricing-alb"
+    alb_listener_port: 443
+    alb_certificate_arn: "arn:aws:acm:us-east-2:ACCOUNT_ID:certificate/xxxxxxxx"
+    health_check_path: "/api/health"
+
+    # CloudWatch Logs
+    log_group_name: "/ecs/mycare-pricing-app"
+    log_retention_days: 30
+
+    # Secrets Manager (store Stripe keys here)
+    secrets:
+      - name: "mycare/stripe-secret-key"
+        description: "Stripe Secret Key"
+      - name: "mycare/stripe-webhook-secret"
+        description: "Stripe Webhook Secret"
+      - name: "mycare/stripe-prices"
+        description: "Stripe Price IDs (JSON)"
+
+    # Auto Scaling
+    autoscaling_enabled: true
+    autoscaling_cpu_target: 70
+    autoscaling_memory_target: 80
+
+    # CloudFront (optional)
+    cloudfront_enabled: false
+    # cloudfront_domain: "mycare.example.com"
+    # cloudfront_certificate_arn: "arn:aws:acm:us-east-1:ACCOUNT_ID:certificate/xxxxxxxx"
+
+    # Tags
+    tags:
+      Project: "MyCare"
+      Service: "PricingApp"
+      ManagedBy: "Terraform"

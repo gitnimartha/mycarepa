@@ -1,0 +1,12 @@
+{
+  "AWSEBDockerrunVersion": "1",
+  "Image": {
+    "Name": "<IMAGE_URI>"
+  },
+  "Ports": [
+    {
+      "ContainerPort": 3001,
+      "HostPort": 3001
+    }
+  ]
+}

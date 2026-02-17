@@ -1,0 +1,75 @@
+# My Care Pricing App - Terraform Configuration
+#
+# HOW TO FILL THIS IN:
+# 1. Go to AWS Console: https://console.aws.amazon.com
+# 2. Select region: us-east-2 (Ohio)
+# 3. Get values from:
+#    - VPC ID: VPC Dashboard → Your VPCs → copy vpc-xxxxxxxx
+#    - Subnet IDs: VPC Dashboard → Subnets → copy 2 subnet IDs from different AZs
+#    - Security Group: VPC Dashboard → Security Groups → copy sg-xxxxxxxx
+#
+# Then copy this file to: lm-devops-configs/terraform/envs/staging/mycare-pricing-app.yaml
+
+mycare-pricing-app:
+  envvars:
+    TG_WORKSPACE: "mycare-pricing-app"
+    AWS_REGION: "us-east-2"
+
+  tfvars-json:
+    # Application Settings
+    app_name: "mycare-pricing-app"
+    environment: "staging"
+
+    # ECS Configuration
+    ecs_cluster_name: "mycare-cluster"
+    ecs_service_name: "mycare-pricing-service"
+    ecs_desired_count: 1
+    ecs_min_capacity: 1
+    ecs_max_capacity: 3
+
+    # Task Definition
+    task_cpu: 256
+    task_memory: 512
+    container_port: 3001
+
+    # ECR Repository
+    ecr_repository_name: "mycare-pricing-app"
+
+    # =============================================
+    # FILL THESE IN FROM AWS CONSOLE:
+    # =============================================
+
+    # VPC Dashboard → Your VPCs
+    vpc_id: "vpc-REPLACE_ME"
+
+    # VPC Dashboard → Subnets (pick 2 in different AZs)
+    subnet_ids:
+      - "subnet-REPLACE_ME_1"
+      - "subnet-REPLACE_ME_2"
+
+    # VPC Dashboard → Security Groups
+    security_group_ids:
+      - "sg-REPLACE_ME"
+
+    # =============================================
+
+    # Load Balancer
+    alb_enabled: true
+    alb_name: "mycare-pricing-alb"
+    alb_listener_port: 443
+    health_check_path: "/api/health"
+    # alb_certificate_arn: "arn:aws:acm:us-east-2:ACCOUNT_ID:certificate/REPLACE_ME"
+
+    # CloudWatch Logs
+    log_group_name: "/ecs/mycare-pricing-app"
+    log_retention_days: 30
+
+    # Auto Scaling
+    autoscaling_enabled: true
+    autoscaling_cpu_target: 70
+
+    # Tags
+    tags:
+      Project: "MyCare"
+      Service: "PricingApp"
+      ManagedBy: "Terraform"

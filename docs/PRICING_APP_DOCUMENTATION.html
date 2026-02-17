@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Pricing App - Technical Documentation</title>
+</head>
+<body>
+
+<h1>Pricing App - Technical Documentation</h1>
+
+<ac:structured-macro ac:name="toc">
+  <ac:parameter ac:name="printable">true</ac:parameter>
+  <ac:parameter ac:name="style">disc</ac:parameter>
+  <ac:parameter ac:name="maxLevel">3</ac:parameter>
+  <ac:parameter ac:name="minLevel">1</ac:parameter>
+</ac:structured-macro>
+
+<hr/>
+
+<h2>Overview</h2>
+
+<p>A React-based SPA for displaying pricing plans with Stripe payment integration. Built for easy A/B testing with VWO.</p>
+
+<table>
+  <tbody>
+    <tr>
+      <th>Component</th>
+      <th>Technology</th>
+      <th>Version</th>
+    </tr>
+    <tr>
+      <td>Frontend</td>
+      <td>React + TypeScript</td>
+      <td>19.x</td>
+    </tr>
+    <tr>
+      <td>Build Tool</td>
+      <td>Vite</td>
+      <td>7.x</td>
+    </tr>
+    <tr>
+      <td>Styling</td>
+      <td>Tailwind CSS</td>
+      <td>4.x</td>
+    </tr>
+    <tr>
+      <td>Backend</td>
+      <td>Express.js</td>
+      <td>5.x</td>
+    </tr>
+    <tr>
+      <td>Payments</td>
+      <td>Stripe</td>
+      <td>20.x</td>
+    </tr>
+  </tbody>
+</table>
+
+<hr/>
+
+<h2>Architecture</h2>
+
+<h3>System Components</h3>
+
+<pre>
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│                 │     │                 │     │                 │
+│  React Frontend │────▶│  Express API    │────▶│  Stripe API     │
+│  (Port 5173)    │     │  (Port 3001)    │     │                 │
+│                 │     │                 │     │                 │
+└─────────────────┘     └─────────────────┘     └─────────────────┘
+        │                                               │
+        │                                               │
+        ▼                                               ▼
+┌─────────────────┐                           ┌─────────────────┐
+│  VWO A/B Test   │                           │ Stripe Checkout │
+│  (Optional)     │                           │ (Hosted Page)   │
+└─────────────────┘                           └─────────────────┘
+</pre>
+
+<h3>Directory Structure</h3>
+
+<pre>
+pricing-app/
+├── src/
+│   ├── App.tsx              # Main pricing page component
+│   ├── main.tsx             # React entry point
+│   └── index.css            # Tailwind styles
+├── server.js                # Express backend for Stripe
+├── setup-stripe-products.js # Script to create Stripe products
+├── create-price-variant.js  # Script to create price variants
+├── .env                     # Environment variables (DO NOT COMMIT)
+├── .gitignore
+├── package.json
+└── vite.config.ts
+</pre>
+
+<hr/>
+
+<h2>Environment Setup</h2>
+
+<h3>Prerequisites</h3>
+<ul>
+  <li>Node.js 18+</li>
+  <li>npm or yarn</li>
+  <li>Stripe account (test mode)</li>
+</ul>
+
+<h3>Environment Variables</h3>
+
+<p><strong>File:</strong> <code>.env</code></p>
+
+<ac:structured-macro ac:name="code">
+  <ac:parameter ac:name="language">bash</ac:parameter>
+  <ac:plain-text-body><![CDATA[# Stripe Keys
+VITE_STRIPE_PUBLISHABLE_KEY=pk_test_xxxxx
+STRIPE_SECRET_KEY=sk_test_xxxxx
+
+# Stripe Price IDs
+STRIPE_PRICE_STARTER_MONTHLY=price_xxxxx
+STRIPE_PRICE_STARTER_ANNUAL=price_xxxxx
+STRIPE_PRICE_PROFESSIONAL_MONTHLY=price_xxxxx
+STRIPE_PRICE_PROFESSIONAL_ANNUAL=price_xxxxx
+STRIPE_PRICE_ENTERPRISE_MONTHLY=price_xxxxx
+STRIPE_PRICE_ENTERPRISE_ANNUAL=price_xxxxx]]></ac:plain-text-body>
+</ac:structured-macro>
+
+<ac:structured-macro ac:name="warning">
+  <ac:rich-text-body>
+    <p>Never commit <code>.env</code> files to version control. The <code>.gitignore</code> is configured to exclude these files.</p>
+  </ac:rich-text-body>
+</ac:structured-macro>
+
+<hr/>
+
+<h2>Installation &amp; Running</h2>
+
+<h3>Initial Setup</h3>
+
+<ac:structured-macro ac:name="code">
+  <ac:parameter ac:name="language">bash</ac:parameter>
+  <ac:plain-text-body><![CDATA[# Install dependencies
+npm install
+
+# Create Stripe products (first time only)
+node setup-stripe-products.js
+
+# Copy the output Price IDs to your .env file]]></ac:plain-text-body>
+</ac:structured-macro>
+
+<h3>Running the Application</h3>
+
+<ac:structured-macro ac:name="code">
+  <ac:parameter ac:name="language">bash</ac:parameter>
+  <ac:plain-text-body><![CDATA[# Terminal 1: Start frontend
+npm run dev
+
+# Terminal 2: Start backend
+npm run server]]></ac:plain-text-body>
+</ac:structured-macro>
+
+<table>
+  <tbody>
+    <tr>
+      <th>Service</th>
+      <th>URL</th>
+      <th>Purpose</th>
+    </tr>
+    <tr>
+      <td>Frontend</td>
+      <td><a href="http://localhost:5173">http://localhost:5173</a></td>
+      <td>Pricing page UI</td>
+    </tr>
+    <tr>
+      <td>Backend API</td>
+      <td><a href="http://localhost:3001">http://localhost:3001</a></td>
+      <td>Stripe checkout sessions</td>
+    </tr>
+  </tbody>
+</table>
+
+<hr/>
+
+<h2>Stripe Products &amp; Pricing</h2>
+
+<h3>Current Plans</h3>
+
+<table>
+  <tbody>
+    <tr>
+      <th>Plan</th>
+      <th>Monthly</th>
+      <th>Annual</th>
+      <th>Product ID</th>
+    </tr>
+    <tr>
+      <td>Starter</td>
+      <td>$29/mo</td>
+      <td>$276/yr ($23/mo)</td>
+      <td>prod_TzbVhzoHHQrmOm</td>
+    </tr>
+    <tr>
+      <td>Professional</td>
+      <td>$79/mo</td>
+      <td>$756/yr ($63/mo)</td>
+      <td>prod_TzbV1Hq1sFFV5A</td>
+    </tr>
+    <tr>
+      <td>Enterprise</td>
+      <td>$199/mo</td>
+      <td>$1,908/yr ($159/mo)</td>
+      <td>prod_TzbVgUzY8se1aI</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Creating New Price Variants</h3>
+
+<p>Use the helper script to create new price variants for A/B testing:</p>
+
+<ac:structured-macro ac:name="code">
+  <ac:parameter ac:name="language">bash</ac:parameter>
+  <ac:plain-text-body><![CDATA[# Syntax
+node create-price-variant.js <product> <amount_cents> <interval>
+
+# Examples
+node create-price-variant.js starter 1900 month    # $19/month Starter
+node create-price-variant.js professional 5900 month   # $59/month Pro
+node create-price-variant.js enterprise 14900 month    # $149/month Enterprise]]></ac:plain-text-body>
+</ac:structured-macro>
+
+<hr/>
+
+<h2>API Reference</h2>
+
+<h3>POST /api/create-checkout-session</h3>
+
+<p>Creates a Stripe Checkout session and returns the redirect URL.</p>
+
+<p><strong>Request Body:</strong></p>
+
+<ac:structured-macro ac:name="code">
+  <ac:parameter ac:name="language">json</ac:parameter>
+  <ac:plain-text-body><![CDATA[{
+  "plan": "starter",           // Required: starter | professional | enterprise
+  "billingCycle": "monthly",   // Required: monthly | annual
+  "variant": "default",        // Optional: A/B test variant name
+  "priceId": "price_xxxxx"     // Optional: Direct price ID override
+}]]></ac:plain-text-body>
+</ac:structured-macro>
+
+<p><strong>Response:</strong></p>
+
+<ac:structured-macro ac:name="code">
+  <ac:parameter ac:name="language">json</ac:parameter>
+  <ac:plain-text-body><![CDATA[{
+  "sessionId": "cs_test_xxxxx",
+  "url": "https://checkout.stripe.com/c/pay/cs_test_xxxxx"
+}]]></ac:plain-text-body>
+</ac:structured-macro>
+
+<h3>GET /api/prices</h3>
+
+<p>Returns all active prices from Stripe. Useful for dynamic pricing experiments.</p>
+
+<p><strong>Response:</strong></p>
+
+<ac:structured-macro ac:name="code">
+  <ac:parameter ac:name="language">json</ac:parameter>
+  <ac:plain-text-body><![CDATA[[
+  {
+    "id": "price_xxxxx",
+    "product": "Starter Plan",
+    "amount": 2900,
+    "currency": "usd",
+    "interval": "month",
+    "lookup_key": "starter_monthly"
+  }
+]]]></ac:plain-text-body>
+</ac:structured-macro>
+
+<h3>GET /api/session/:sessionId</h3>
+
+<p>Retrieves details of a checkout session. Used on the success page.</p>
+
+<hr/>
+
+<h2>A/B Testing with VWO</h2>
+
+<h3>Option 1: Display Price Only (Frontend)</h3>
+
+<p>Modify displayed prices without changing actual checkout price. Add this in VWO variation:</p>
+
+<ac:structured-macro ac:name="code">
+  <ac:parameter ac:name="language">javascript</ac:parameter>
+  <ac:plain-text-body><![CDATA[// VWO Variation Code
+(function() {
+  // Override price display
+  const priceElements = document.querySelectorAll('[data-price]');
+  priceElements.forEach(el => {
+    if (el.dataset.plan === 'starter') {
+      el.textContent = '$19';
+    }
+  });
+})();]]></ac:plain-text-body>
+</ac:structured-macro>
+
+<ac:structured-macro ac:name="note">
+  <ac:rich-text-body>
+    <p>This only changes the display. The actual checkout price remains unchanged.</p>
+  </ac:rich-text-body>
+</ac:structured-macro>
+
+<h3>Option 2: Direct Price ID Override</h3>
+
+<p>Pass a specific Stripe Price ID to charge a different amount:</p>
+
+<ac:structured-macro ac:name="code">
+  <ac:parameter ac:name="language">javascript</ac:parameter>
+  <ac:plain-text-body><![CDATA[// VWO Variation Code - Override checkout
+(function() {
+  const originalFetch = window.fetch;
+  window.fetch = function(url, options) {
+    if (url.includes('/api/create-checkout-session')) {
+      const body = JSON.parse(options.body);
+      // Override with experiment price
+      body.priceId = 'price_experiment_xxxxx';
+      options.body = JSON.stringify(body);
+    }
+    return originalFetch.apply(this, arguments);
+  };
+})();]]></ac:plain-text-body>
+</ac:structured-macro>
+
+<h3>Option 3: Named Variants (Recommended)</h3>
+
+<p><strong>Step 1:</strong> Add variant in <code>server.js</code>:</p>
+
+<ac:structured-macro ac:name="code">
+  <ac:parameter ac:name="language">javascript</ac:parameter>
+  <ac:plain-text-body><![CDATA[const PRICE_VARIANTS = {
+  default: DEFAULT_PRICES,
+
+  // 20% discount experiment
+  experiment_20pct_off: {
+    starter: {
+      monthly: 'price_xxxxx',  // $23/mo
+      annual: 'price_xxxxx'    // $220/yr
+    },
+    professional: {
+      monthly: 'price_xxxxx',  // $63/mo
+      annual: 'price_xxxxx'    // $605/yr
+    },
+    enterprise: {
+      monthly: 'price_xxxxx',  // $159/mo
+      annual: 'price_xxxxx'    // $1527/yr
+    },
+  },
+};]]></ac:plain-text-body>
+</ac:structured-macro>
+
+<p><strong>Step 2:</strong> VWO passes variant name:</p>
+
+<ac:structured-macro ac:name="code">
+  <ac:parameter ac:name="language">javascript</ac:parameter>
+  <ac:plain-text-body><![CDATA[// VWO Variation Code
+(function() {
+  window.PRICING_VARIANT = 'experiment_20pct_off';
+
+  const originalFetch = window.fetch;
+  window.fetch = function(url, options) {
+    if (url.includes('/api/create-checkout-session')) {
+      const body = JSON.parse(options.body);
+      body.variant = window.PRICING_VARIANT;
+      options.body = JSON.stringify(body);
+    }
+    return originalFetch.apply(this, arguments);
+  };
+})();]]></ac:plain-text-body>
+</ac:structured-macro>
+
+<ac:structured-macro ac:name="info">
+  <ac:rich-text-body>
+    <p>The variant name is stored in Stripe session metadata for conversion tracking.</p>
+  </ac:rich-text-body>
+</ac:structured-macro>
+
+<hr/>
+
+<h2>Testing</h2>
+
+<h3>Stripe Test Cards</h3>
+
+<table>
+  <tbody>
+    <tr>
+      <th>Scenario</th>
+      <th>Card Number</th>
+      <th>Expiry</th>
+      <th>CVC</th>
+    </tr>
+    <tr>
+      <td>Successful payment</td>
+      <td>4242 4242 4242 4242</td>
+      <td>Any future date</td>
+      <td>Any 3 digits</td>
+    </tr>
+    <tr>
+      <td>Card declined</td>
+      <td>4000 0000 0000 0002</td>
+      <td>Any future date</td>
+      <td>Any 3 digits</td>
+    </tr>
+    <tr>
+      <td>Requires authentication</td>
+      <td>4000 0025 0000 3155</td>
+      <td>Any future date</td>
+      <td>Any 3 digits</td>
+    </tr>
+    <tr>
+      <td>Insufficient funds</td>
+      <td>4000 0000 0000 9995</td>
+      <td>Any future date</td>
+      <td>Any 3 digits</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Useful Stripe Dashboard Links</h3>
+
+<ul>
+  <li><a href="https://dashboard.stripe.com/test/products">Products</a></li>
+  <li><a href="https://dashboard.stripe.com/test/subscriptions">Subscriptions</a></li>
+  <li><a href="https://dashboard.stripe.com/test/payments">Payments</a></li>
+  <li><a href="https://dashboard.stripe.com/test/logs">API Logs</a></li>
+</ul>
+
+<hr/>
+
+<h2>Deployment Checklist</h2>
+
+<ac:structured-macro ac:name="tasklist">
+  <ac:rich-text-body>
+    <ul>
+      <li>Replace test Stripe keys with production keys</li>
+      <li>Update success/cancel URLs to production domain</li>
+      <li>Create production products/prices in Stripe</li>
+      <li>Set up Stripe webhooks for subscription events</li>
+      <li>Configure CORS for production domain</li>
+      <li>Set up SSL/HTTPS</li>
+      <li>Add rate limiting to API</li>
+      <li>Set up monitoring and error tracking</li>
+    </ul>
+  </ac:rich-text-body>
+</ac:structured-macro>
+
+<hr/>
+
+<h2>Troubleshooting</h2>
+
+<h3>Common Issues</h3>
+
+<table>
+  <tbody>
+    <tr>
+      <th>Issue</th>
+      <th>Cause</th>
+      <th>Solution</th>
+    </tr>
+    <tr>
+      <td>CORS error</td>
+      <td>Frontend and backend on different ports</td>
+      <td>Backend already has CORS enabled. Check if server is running.</td>
+    </tr>
+    <tr>
+      <td>"Price not configured"</td>
+      <td>Missing Price ID in .env</td>
+      <td>Run <code>setup-stripe-products.js</code> and update .env</td>
+    </tr>
+    <tr>
+      <td>Checkout redirect fails</td>
+      <td>Invalid Price ID</td>
+      <td>Verify Price ID exists in Stripe Dashboard</td>
+    </tr>
+    <tr>
+      <td>Page is blank</td>
+      <td>Vite not running or build error</td>
+      <td>Check terminal for errors, restart with <code>npm run dev</code></td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Logs &amp; Debugging</h3>
+
+<ac:structured-macro ac:name="code">
+  <ac:parameter ac:name="language">bash</ac:parameter>
+  <ac:plain-text-body><![CDATA[# Check server logs
+cat server.log
+
+# Test API directly
+curl -X POST http://localhost:3001/api/create-checkout-session \
+  -H "Content-Type: application/json" \
+  -d '{"plan":"starter","billingCycle":"monthly"}'
+
+# List all prices
+curl http://localhost:3001/api/prices]]></ac:plain-text-body>
+</ac:structured-macro>
+
+<hr/>
+
+<h2>Contact &amp; Support</h2>
+
+<table>
+  <tbody>
+    <tr>
+      <th>Resource</th>
+      <th>Link</th>
+    </tr>
+    <tr>
+      <td>Stripe Documentation</td>
+      <td><a href="https://stripe.com/docs">https://stripe.com/docs</a></td>
+    </tr>
+    <tr>
+      <td>VWO Documentation</td>
+      <td><a href="https://help.vwo.com">https://help.vwo.com</a></td>
+    </tr>
+    <tr>
+      <td>React Documentation</td>
+      <td><a href="https://react.dev">https://react.dev</a></td>
+    </tr>
+  </tbody>
+</table>
+
+</body>
+</html>
