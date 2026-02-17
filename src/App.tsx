@@ -92,12 +92,12 @@ function Header() {
           <span className="font-semibold text-gray-900">My Care Personal Assistant™</span>
         </div>
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => handleCheckout('starter')}
+          <a
+            href="#contact"
             className="bg-[#7c8b7c] hover:bg-[#6b7a6b] text-white px-5 py-2.5 rounded-full font-medium transition-colors"
           >
             Schedule Time
-          </button>
+          </a>
           <a href="#pricing" className="border border-gray-300 hover:border-[#7c8b7c] text-gray-700 px-5 py-2.5 rounded-full font-medium transition-colors">
             View Plans
           </a>
@@ -135,12 +135,12 @@ function Hero() {
               No scripts. No bots. You'll be matched with a person who listens and cares.
             </p>
 
-            <button
-              onClick={() => handleCheckout('starter')}
-              className="bg-[#7c8b7c] hover:bg-[#6b7a6b] text-white px-8 py-4 rounded-lg font-semibold text-lg transition-colors mb-3"
+            <a
+              href="#contact"
+              className="inline-block bg-[#7c8b7c] hover:bg-[#6b7a6b] text-white px-8 py-4 rounded-lg font-semibold text-lg transition-colors mb-3"
             >
               Start Your Free Trial
-            </button>
+            </a>
             <p className="text-sm text-gray-500">No credit card required</p>
           </div>
 
@@ -641,7 +641,7 @@ function ContactForm() {
   }
 
   return (
-    <section className="py-20 bg-white">
+    <section id="contact" className="py-20 bg-white">
       <div className="max-w-7xl mx-auto px-6">
         <div className="grid lg:grid-cols-2 gap-0 overflow-hidden rounded-2xl">
           <div className="bg-[#fde4db] p-8 flex items-center justify-center">
