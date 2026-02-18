@@ -688,6 +688,7 @@ app.post('/api/assistant/report-usage', async (req, res) => {
       success: true,
       message: `Successfully logged ${hoursNum} hours`,
       eventId: meterEvent.identifier,
+      reportedHours: hoursNum, // Return for optimistic UI update
     });
   } catch (error) {
     console.error('Error reporting usage:', error);

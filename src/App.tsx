@@ -1044,15 +1044,23 @@ function AssistantPage() {
         setMessage(`Successfully logged ${hours} hours!`)
         setStatus('success')
         setHours('')
-        // Refresh customer data
-        const refreshResponse = await fetch(`${API_URL}/api/assistant/lookup`, {
+
+        // Optimistically update UI immediately (Stripe meters have slight delay)
+        const reportedHours = data.reportedHours || parseFloat(hours)
+        setCustomer(prev => prev ? {
+          ...prev,
+          usedHours: Math.round((prev.usedHours || 0) + reportedHours * 100) / 100,
+          remainingHours: Math.round(Math.max(0, (prev.remainingHours || 0) - reportedHours) * 100) / 100,
+        } : prev)
+
+        // Also refresh from server in background (will sync with Stripe eventually)
+        fetch(`${API_URL}/api/assistant/lookup`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: customer.email, password }),
-        })
-        if (refreshResponse.ok) {
-          setCustomer(await refreshResponse.json())
-        }
+        }).then(res => res.ok ? res.json() : null).then(data => {
+          if (data) setCustomer(data)
+        }).catch(() => {})
       } else {
         setMessage(data.error || 'Failed to log usage')
         setStatus('error')
