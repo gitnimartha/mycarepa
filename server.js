@@ -330,12 +330,15 @@ app.post('/api/send-verification-code', async (req, res) => {
 
     // Generate 6-digit code
     const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiry = Math.floor(Date.now() / 1000) + 10 * 60; // 10 minutes from now (Unix timestamp)
 
-    // Store code with 10-minute expiry
-    verificationCodes.set(normalizedEmail, {
-      code,
-      expiry: Date.now() + 10 * 60 * 1000, // 10 minutes
-      attempts: 0
+    // Store code in Stripe customer metadata (persistent across Railway sleep/wake)
+    await stripe.customers.update(customer.id, {
+      metadata: {
+        verification_code: code,
+        verification_expiry: expiry.toString(),
+        verification_attempts: '0'
+      }
     });
 
     // Send email via Resend
@@ -387,46 +390,6 @@ app.post('/api/verify-customer', async (req, res) => {
 
     const normalizedEmail = email.toLowerCase().trim();
 
-    // Verify the code
-    const storedData = verificationCodes.get(normalizedEmail);
-
-    if (!storedData) {
-      return res.status(400).json({
-        error: 'Invalid or expired code',
-        message: 'Please request a new verification code.'
-      });
-    }
-
-    // Check if code has expired
-    if (Date.now() > storedData.expiry) {
-      verificationCodes.delete(normalizedEmail);
-      return res.status(400).json({
-        error: 'Code expired',
-        message: 'Your verification code has expired. Please request a new one.'
-      });
-    }
-
-    // Check attempts (max 5)
-    if (storedData.attempts >= 5) {
-      verificationCodes.delete(normalizedEmail);
-      return res.status(400).json({
-        error: 'Too many attempts',
-        message: 'Too many incorrect attempts. Please request a new code.'
-      });
-    }
-
-    // Verify the code
-    if (storedData.code !== code) {
-      storedData.attempts++;
-      return res.status(400).json({
-        error: 'Invalid code',
-        message: 'Incorrect verification code. Please try again.'
-      });
-    }
-
-    // Code is valid - delete it so it can't be reused
-    verificationCodes.delete(normalizedEmail);
-
     // Search for customer by email
     const customers = await stripe.customers.list({
       email: normalizedEmail,
@@ -436,12 +399,63 @@ app.post('/api/verify-customer', async (req, res) => {
     if (customers.data.length === 0) {
       return res.status(404).json({
         error: 'No subscription found',
-        canSchedule: false,
-        message: 'No active subscription found for this email. Please subscribe first.'
+        message: 'No active subscription found for this email.'
       });
     }
 
     const customer = customers.data[0];
+
+    // Get verification data from customer metadata
+    const storedCode = customer.metadata.verification_code;
+    const storedExpiry = parseInt(customer.metadata.verification_expiry || '0');
+    const attempts = parseInt(customer.metadata.verification_attempts || '0');
+
+    if (!storedCode) {
+      return res.status(400).json({
+        error: 'Invalid or expired code',
+        message: 'Please request a new verification code.'
+      });
+    }
+
+    // Check if code has expired
+    const now = Math.floor(Date.now() / 1000);
+    if (now > storedExpiry) {
+      // Clear expired code
+      await stripe.customers.update(customer.id, {
+        metadata: { verification_code: '', verification_expiry: '', verification_attempts: '' }
+      });
+      return res.status(400).json({
+        error: 'Code expired',
+        message: 'Your verification code has expired. Please request a new one.'
+      });
+    }
+
+    // Check attempts (max 5)
+    if (attempts >= 5) {
+      await stripe.customers.update(customer.id, {
+        metadata: { verification_code: '', verification_expiry: '', verification_attempts: '' }
+      });
+      return res.status(400).json({
+        error: 'Too many attempts',
+        message: 'Too many incorrect attempts. Please request a new code.'
+      });
+    }
+
+    // Verify the code
+    if (storedCode !== code) {
+      await stripe.customers.update(customer.id, {
+        metadata: { verification_attempts: (attempts + 1).toString() }
+      });
+      return res.status(400).json({
+        error: 'Invalid code',
+        message: 'Incorrect verification code. Please try again.'
+      });
+    }
+
+    // Code is valid - clear it so it can't be reused
+    await stripe.customers.update(customer.id, {
+      metadata: { verification_code: '', verification_expiry: '', verification_attempts: '' }
+    });
 
     // Get active subscription
     const subscriptions = await stripe.subscriptions.list({
