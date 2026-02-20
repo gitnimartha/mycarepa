@@ -1,6 +1,15 @@
 import { useState, useEffect } from 'react'
 import './index.css'
 
+// Calendly type declaration
+declare global {
+  interface Window {
+    Calendly?: {
+      initPopupWidget: (options: { url: string }) => void
+    }
+  }
+}
+
 // API URL - empty string in production (same origin), localhost in development
 const API_URL = import.meta.env.PROD ? '' : (import.meta.env.VITE_API_URL || 'http://localhost:3001')
 
@@ -623,6 +632,9 @@ function FAQ() {
   )
 }
 
+// Calendly URL
+const CALENDLY_URL = 'https://calendly.com/mtkinz79/dfsd'
+
 // Contact Form Section
 function Contact() {
   const [formData, setFormData] = useState({
@@ -633,17 +645,25 @@ function Contact() {
   })
   const [status, setStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle')
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     setStatus('submitting')
 
-    // Trigger Stripe checkout for starter plan
-    try {
-      await handleCheckout('starter')
+    // Open Calendly popup with pre-filled user info
+    if (window.Calendly) {
+      window.Calendly.initPopupWidget({
+        url: `${CALENDLY_URL}?name=${encodeURIComponent(formData.name)}&email=${encodeURIComponent(formData.email)}`
+      })
       setStatus('success')
-    } catch {
-      setStatus('error')
-      setTimeout(() => setStatus('idle'), 5000)
+      // Reset form after short delay
+      setTimeout(() => {
+        setFormData({ name: '', email: '', phone: '', message: '' })
+        setStatus('idle')
+      }, 1000)
+    } else {
+      // Fallback: redirect to Calendly
+      window.open(`${CALENDLY_URL}?name=${encodeURIComponent(formData.name)}&email=${encodeURIComponent(formData.email)}`, '_blank')
+      setStatus('success')
     }
   }
 
@@ -751,7 +771,7 @@ function Contact() {
 
               {status === 'success' && (
                 <div className="p-4 bg-green-50 border border-green-200 rounded-lg text-green-800 text-center">
-                  Thank you! Redirecting to checkout...
+                  Opening scheduler...
                 </div>
               )}
 
