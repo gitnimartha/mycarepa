@@ -348,7 +348,7 @@ app.post('/api/verify-customer', async (req, res) => {
       message: canSchedule
         ? `You have ${remainingHours} hours remaining this period.`
         : 'You have used all your hours this period. Please upgrade your plan to continue.',
-      _debug: { meterDebug, meterId: process.env.MYCARE_METER_ID, periodStart: subscription.current_period_start }
+      _debug: { meterDebug, meterId: process.env.MYCARE_METER_ID, periodStart: subscription.current_period_start, subKeys: Object.keys(subscription) }
     });
   } catch (error) {
     console.error('Error verifying customer:', error);
