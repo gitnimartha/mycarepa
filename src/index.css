@@ -2,7 +2,7 @@
 
 @theme {
   --font-sans: 'Inter', system-ui, sans-serif;
-  --font-serif: 'Playfair Display', Georgia, serif;
+  --font-serif: 'Lora', Georgia, serif;
 }
 
 body {
@@ -14,7 +14,7 @@ body {
 }
 
 .font-serif {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Lora', Georgia, serif;
 }
 
 /* Smooth scroll */
@@ -38,4 +38,18 @@ html {
 
 ::-webkit-scrollbar-thumb:hover {
   background: #6b7a6b;
+}
+
+/* Shimmer animation */
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 3s linear infinite;
 }

@@ -1,69 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import './index.css'
 
-// Icons
-const HeartIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-  </svg>
-)
-
-const CheckIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/>
-  </svg>
-)
-
-const CalendarIcon = () => (
-  <svg className="w-8 h-8 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-  </svg>
-)
-
-const MonitorIcon = () => (
-  <svg className="w-8 h-8 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-  </svg>
-)
-
-const LightbulbIcon = () => (
-  <svg className="w-8 h-8 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-  </svg>
-)
-
-const HeartHandIcon = () => (
-  <svg className="w-8 h-8 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-  </svg>
-)
-
-const PlusIcon = () => (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-  </svg>
-)
-
-const MinusIcon = () => (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-  </svg>
-)
-
-const ShieldCheckIcon = () => (
-  <svg className="w-5 h-5 text-[#7c8b7c]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-  </svg>
-)
-
-const LockIcon = () => (
-  <svg className="w-5 h-5 text-[#7c8b7c]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-  </svg>
-)
-
-// API URL - use environment variable in production, localhost in development
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+// API URL - empty string in production (same origin), localhost in development
+const API_URL = import.meta.env.PROD ? '' : (import.meta.env.VITE_API_URL || 'http://localhost:3001')
 
 // Stripe checkout handler
 const handleCheckout = async (planId: string) => {
@@ -82,73 +21,95 @@ const handleCheckout = async (planId: string) => {
   }
 }
 
-// Header Component
-function Header() {
+// Scroll helper
+const scrollToSection = (id: string) => {
+  const element = document.getElementById(id)
+  if (element) {
+    element.scrollIntoView({ behavior: 'smooth' })
+  }
+}
+
+// Sticky Banner Component
+function StickyBanner({ show }: { show: boolean }) {
   return (
-    <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-100">
-      <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+    <div
+      className={`fixed top-0 left-0 right-0 z-50 bg-[#FFF8F0] shadow-md transition-transform duration-300 ${
+        show ? 'translate-y-0' : '-translate-y-full'
+      }`}
+    >
+      <div className="max-w-7xl mx-auto px-6 py-4 flex flex-col md:flex-row items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <HeartIcon className="w-6 h-6 text-[#8fbc8f]" />
-          <span className="font-semibold text-gray-900">My Care Personal Assistant™</span>
+          <i className="ri-heart-fill text-[#A8B89F] text-xl"></i>
+          <span className="font-serif text-lg font-semibold text-[#2C2C2C]">
+            My Care Personal Assistant™
+          </span>
         </div>
-        <div className="flex items-center gap-3">
-          <a
-            href="#contact"
-            className="bg-[#7c8b7c] hover:bg-[#6b7a6b] text-white px-5 py-2.5 rounded-full font-medium transition-colors"
+        <div className="flex flex-col md:flex-row items-center gap-3 md:gap-4 w-full md:w-auto">
+          <button
+            onClick={() => scrollToSection('contact')}
+            className="w-full md:w-auto px-6 py-2.5 bg-[#A8B89F] text-white rounded-full font-medium hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 whitespace-nowrap cursor-pointer"
           >
             Schedule Time
-          </a>
-          <a href="#pricing" className="border border-gray-300 hover:border-[#7c8b7c] text-gray-700 px-5 py-2.5 rounded-full font-medium transition-colors">
+          </button>
+          <button
+            onClick={() => scrollToSection('pricing')}
+            className="w-full md:w-auto px-6 py-2.5 border-2 border-[#A8B89F] text-[#A8B89F] rounded-full font-medium transition-all duration-300 whitespace-nowrap cursor-pointer hover:bg-[#A8B89F] hover:text-white"
+          >
             View Plans
-          </a>
+          </button>
         </div>
       </div>
-    </header>
+    </div>
   )
 }
 
 // Hero Section
 function Hero() {
   return (
-    <section className="bg-gradient-to-b from-[#fdf2f4] to-white py-16 lg:py-24">
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="grid lg:grid-cols-2 gap-12 items-center">
-          <div>
-            <div className="flex items-center gap-2 mb-6">
-              <HeartIcon className="w-5 h-5 text-[#8fbc8f]" />
-              <span className="text-sm font-medium text-gray-600 tracking-wide">REAL HUMAN SUPPORT</span>
-            </div>
-
-            <h1 className="text-4xl lg:text-5xl font-serif font-bold text-gray-900 mb-6 leading-tight">
-              My Care<br />Personal<br />Assistant™
-            </h1>
-
-            <p className="text-xl text-gray-700 mb-4 font-medium">
-              Your personal assistant when you need help most
-            </p>
-
-            <p className="text-gray-600 mb-4 leading-relaxed">
-              Life doesn't come with instructions. You don't have to figure everything out alone. My Care Personal Assistant™ connects you with a real, trained human who helps you work through challenges, stay organized, and move forward.
-            </p>
-
-            <p className="text-gray-600 mb-8 leading-relaxed">
-              No scripts. No bots. You'll be matched with a person who listens and cares.
-            </p>
-
-            <a
-              href="#contact"
-              className="inline-block bg-[#7c8b7c] hover:bg-[#6b7a6b] text-white px-8 py-4 rounded-lg font-semibold text-lg transition-colors mb-3"
-            >
-              Start Your Free Trial
-            </a>
-            <p className="text-sm text-gray-500">No credit card required</p>
+    <section className="min-h-screen flex items-center bg-gradient-to-br from-[#FFD4C4] via-[#FFF8F0] to-[#FFF8F0] relative overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-transparent to-transparent"></div>
+      <div className="max-w-7xl mx-auto px-6 py-20 grid lg:grid-cols-5 gap-12 items-center relative z-10">
+        <div className="lg:col-span-2 space-y-6">
+          <div className="flex items-center gap-2 mb-4">
+            <i className="ri-heart-fill text-[#A8B89F] text-2xl"></i>
+            <span className="text-sm font-medium text-[#6B6B6B] uppercase tracking-wider">
+              Real Human Support
+            </span>
           </div>
-
+          <h1 className="font-serif text-5xl lg:text-6xl font-bold text-[#2C2C2C] leading-tight">
+            My Care Personal Assistant™
+          </h1>
+          <h2 className="text-2xl text-[#2C2C2C] font-light">
+            Your personal assistant when you need help most
+          </h2>
+          <p className="text-lg text-[#6B6B6B] leading-relaxed">
+            Life doesn't come with instructions. You don't have to figure everything out alone.
+            MyCarePA, My Care Personal Assistant™, connects you with a real, trained human who helps you work
+            through challenges, stay organized, and move forward.
+          </p>
+          <p className="text-lg text-[#6B6B6B] leading-relaxed">
+            No scripts. No bots. You'll be matched with a person who listens and cares.
+          </p>
+          <div className="pt-4 flex flex-col items-start gap-3">
+            <button
+              onClick={() => scrollToSection('contact')}
+              className="group relative w-full sm:w-auto px-10 py-4 bg-[#A8B89F] text-white text-lg font-semibold rounded-full overflow-hidden transition-all duration-300 whitespace-nowrap cursor-pointer hover:shadow-xl hover:-translate-y-1 hover:scale-105"
+            >
+              <span className="relative z-10 inline-flex items-center gap-2">
+                Buy Now!
+                <i className="ri-arrow-right-line text-xl transition-transform duration-300 group-hover:translate-x-1"></i>
+              </span>
+              <div className="absolute inset-0 bg-gradient-to-r from-[#A8B89F] via-[#8FA085] to-[#A8B89F] bg-[length:200%_100%] animate-shimmer"></div>
+            </button>
+          </div>
+        </div>
+        <div className="lg:col-span-3">
           <div className="relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-[#A8B89F]/20 to-transparent rounded-3xl transform rotate-3"></div>
             <img
-              src="https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=600&h=700&fit=crop"
-              alt="Woman working on laptop"
-              className="rounded-3xl shadow-lg w-full object-cover"
+              src="https://readdy.ai/api/search-image?query=A%20warm%20and%20caring%20diverse%20personal%20assistant%20sitting%20in%20a%20bright%20plant%20filled%20home%20office%20with%20natural%20wood%20tones%20and%20soft%20lighting%20smiling%20warmly%20during%20a%20video%20call%20on%20laptop%20looking%20toward%20the%20left%20side%20of%20the%20screen%20with%20genuine%20caring%20expression%20professional%20yet%20approachable%20atmosphere%20soft%20focus%20background%20with%20green%20plants%20and%20cream%20colored%20walls&width=800&height=600&seq=hero001&orientation=landscape"
+              alt="Caring personal assistant"
+              className="relative rounded-3xl shadow-2xl w-full h-auto object-cover"
             />
           </div>
         </div>
@@ -157,53 +118,59 @@ function Hero() {
   )
 }
 
-// About Section
-function About() {
+// What Is My Care Section
+function WhatIsMyCare() {
   const benefits = [
-    "Understand what to do next",
-    "Break down overwhelming tasks",
-    "Stay on track with important follow-ups",
-    "Get unstuck when technology, paperwork, or life gets complicated"
+    'Understand what to do next',
+    'Break down overwhelming tasks',
+    'Stay on track with important follow-ups',
+    'Get unstuck when technology, paperwork, or life gets complicated'
   ]
 
   return (
     <section className="py-20 bg-white">
       <div className="max-w-7xl mx-auto px-6">
         <div className="text-center mb-12">
-          <span className="inline-block bg-[#7c8b7c] text-white px-6 py-2 rounded-full text-sm font-medium mb-6">
-            ABOUT THE SERVICE
+          <span className="inline-block px-6 py-2 bg-[#A8B89F] text-white text-sm font-medium uppercase tracking-wider rounded-full">
+            About the Service
           </span>
-          <h2 className="text-3xl lg:text-4xl font-serif font-bold text-gray-900">
+          <h2 className="font-serif text-4xl lg:text-5xl font-bold text-[#2C2C2C] mt-6">
             What is My Care Personal Assistant?
           </h2>
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-12 items-center">
-          <div className="flex justify-center">
-            <img
-              src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&h=400&fit=crop&crop=face"
-              alt="Personal assistant"
-              className="rounded-full w-80 h-80 object-cover shadow-lg"
-            />
+        <div className="grid lg:grid-cols-5 gap-12 items-center">
+          <div className="lg:col-span-2">
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-br from-[#FFD4C4]/30 to-transparent rounded-full transform -rotate-6"></div>
+              <img
+                src="https://readdy.ai/api/search-image?query=A%20caring%20personal%20assistant%20and%20client%20having%20an%20engaged%20comfortable%20conversation%20both%20smiling%20in%20a%20bright%20welcoming%20office%20space%20with%20soft%20natural%20lighting%20warm%20tones%20and%20plants%20in%20background%20showing%20trust%20and%20connection%20professional%20yet%20friendly%20atmosphere&width=500&height=500&seq=about001&orientation=squarish"
+                alt="Personal assistant with client"
+                className="relative rounded-full shadow-xl w-full h-auto object-cover"
+              />
+            </div>
           </div>
 
-          <div>
-            <p className="text-gray-600 mb-6 leading-relaxed text-lg">
-              My Care is a personal assistant service designed for real people, not executives or celebrities. Most people think personal assistants are only for the wealthy. We believe everyone deserves access to reliable human support—especially during stressful or confusing moments.
+          <div className="lg:col-span-3 space-y-6">
+            <p className="text-lg text-[#6B6B6B] leading-relaxed">
+              MyCarePA is a personal assistant service designed for real people, not executives or celebrities.
+              Most people think personal assistants are only for the wealthy. We believe everyone deserves access
+              to reliable human support—especially during stressful or confusing moments.
             </p>
 
-            <h3 className="text-xl font-semibold text-gray-900 mb-4">
-              Your personal assistant can help you:
-            </h3>
-
-            <ul className="space-y-3">
-              {benefits.map((benefit, index) => (
-                <li key={index} className="flex items-start gap-3">
-                  <HeartIcon className="w-5 h-5 text-[#8fbc8f] mt-0.5 flex-shrink-0" />
-                  <span className="text-gray-600">{benefit}</span>
-                </li>
-              ))}
-            </ul>
+            <div className="space-y-4 pt-4">
+              <h3 className="text-2xl font-serif font-semibold text-[#2C2C2C]">
+                Your personal assistant can help you:
+              </h3>
+              <ul className="space-y-3">
+                {benefits.map((benefit, index) => (
+                  <li key={index} className="flex items-start gap-3">
+                    <i className="ri-heart-fill text-[#A8B89F] text-xl mt-1 flex-shrink-0"></i>
+                    <span className="text-lg text-[#6B6B6B]">{benefit}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
         </div>
       </div>
@@ -211,97 +178,74 @@ function About() {
   )
 }
 
-// How It Works Icons
-const PersonIcon = () => (
-  <svg className="w-10 h-10 text-[#7c8b7c]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-  </svg>
-)
-
-const ChatIcon = () => (
-  <svg className="w-10 h-10 text-[#7c8b7c]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-  </svg>
-)
-
-const ChecklistIcon = () => (
-  <svg className="w-10 h-10 text-[#7c8b7c]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-  </svg>
-)
-
-const RefreshIcon = () => (
-  <svg className="w-10 h-10 text-[#7c8b7c]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-  </svg>
-)
-
 // How It Works Section
 function HowItWorks() {
   const steps = [
     {
-      number: "1",
-      icon: <PersonIcon />,
-      title: "Get matched with a personal assistant",
-      description: "You'll be paired with a trained assistant who becomes your primary point of contact."
+      number: 1,
+      title: 'Get matched with a personal assistant',
+      description: "You'll be paired with a trained assistant who becomes your primary point of contact.",
+      icon: 'ri-user-heart-line'
     },
     {
-      number: "2",
-      icon: <ChatIcon />,
-      title: "Have a real conversation",
-      description: "Your first call is about understanding you—your situation, your goals, and what you need help with."
+      number: 2,
+      title: 'Have a real conversation',
+      description: 'Your first call is about understanding you—your situation, your goals, and what you need help with.',
+      icon: 'ri-chat-smile-3-line'
     },
     {
-      number: "3",
-      icon: <ChecklistIcon />,
-      title: "Get ongoing support",
-      description: "Your assistant checks in, helps you prioritize, and supports you through calls, messages, and follow-ups."
+      number: 3,
+      title: 'Get ongoing support',
+      description: 'Your assistant checks in, helps you prioritize, and supports you through calls, messages, and follow-ups.',
+      icon: 'ri-calendar-check-line'
     },
     {
-      number: "4",
-      icon: <RefreshIcon />,
-      title: "Adjust as you go",
-      description: "What you need today may change tomorrow. Your assistant adapts with you."
+      number: 4,
+      title: 'Adjust as you go',
+      description: 'What you need today may change tomorrow. Your assistant adapts with you.',
+      icon: 'ri-refresh-line'
     }
   ]
 
   return (
-    <section id="how-it-works" className="py-20 bg-[#fdf2f4]">
+    <section id="how-it-works" className="py-20 bg-[#A8B89F]">
       <div className="max-w-7xl mx-auto px-6">
         <div className="text-center mb-16">
-          <h2 className="text-4xl lg:text-5xl font-serif font-bold text-[#4a5548] mb-4">
+          <h2 className="font-serif text-4xl lg:text-5xl font-bold text-white">
             How It Works
           </h2>
-          <div className="w-16 h-1 bg-[#4a5548] mx-auto"></div>
+          <div className="w-24 h-1 bg-[#2C2C2C] mx-auto mt-6"></div>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
           {steps.map((step, index) => (
-            <div key={index} className="bg-white rounded-2xl p-8 text-center shadow-sm hover:shadow-md transition-shadow">
-              {/* Number Circle */}
-              <div className="w-14 h-14 bg-[#f8d7da] rounded-full flex items-center justify-center mx-auto mb-6">
-                <span className="text-xl font-semibold text-[#4a5548]">{step.number}</span>
+            <div
+              key={index}
+              className="bg-white rounded-3xl p-8 shadow-lg hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 cursor-pointer"
+            >
+              <div className="flex flex-col items-center text-center space-y-4">
+                <div className="w-16 h-16 bg-[#FFD4C4] rounded-full flex items-center justify-center text-white text-2xl font-bold">
+                  {step.number}
+                </div>
+                <div className="w-16 h-16 flex items-center justify-center">
+                  <i className={`${step.icon} text-5xl text-[#A8B89F]`}></i>
+                </div>
+                <h3 className="font-serif text-xl font-semibold text-[#2C2C2C] leading-tight">
+                  {step.title}
+                </h3>
+                <p className="text-[#6B6B6B] leading-relaxed">
+                  {step.description}
+                </p>
               </div>
-
-              {/* Icon */}
-              <div className="flex justify-center mb-6">
-                {step.icon}
-              </div>
-
-              {/* Title */}
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">{step.title}</h3>
-
-              {/* Description */}
-              <p className="text-gray-500 text-sm leading-relaxed">{step.description}</p>
             </div>
           ))}
         </div>
 
-        <div className="flex justify-center">
+        <div className="mt-16 flex justify-center">
           <img
-            src="https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=800&h=500&fit=crop"
-            alt="Woman smiling at laptop"
-            className="rounded-2xl shadow-xl max-w-3xl w-full object-cover"
+            src="https://readdy.ai/api/search-image?query=A%20satisfied%20client%20smiling%20with%20relief%20and%20happiness%20looking%20toward%20the%20right%20side%20of%20screen%20in%20a%20comfortable%20home%20setting%20with%20warm%20natural%20lighting%20soft%20focus%20background%20showing%20peace%20of%20mind%20and%20contentment%20after%20receiving%20support%20professional%20photography&width=600&height=400&seq=satisfied001&orientation=landscape"
+            alt="Satisfied client"
+            className="rounded-3xl shadow-2xl max-w-2xl w-full h-auto object-cover"
           />
         </div>
       </div>
@@ -311,74 +255,84 @@ function HowItWorks() {
 
 // Services Section
 function Services() {
-  const services = [
+  const categories = [
     {
-      title: "Life & Organization",
-      icon: <CalendarIcon />,
-      bgColor: "bg-[#fde4db]",
+      title: 'Life & Organization',
+      icon: 'ri-calendar-todo-line',
+      color: 'bg-[#FFD4C4]',
       items: [
-        "Breaking down overwhelming to-do lists",
-        "Staying on top of important deadlines",
-        "Following up on calls, emails, or applications",
-        "Keeping track of next steps when life feels chaotic"
+        'Breaking down overwhelming to-do lists',
+        'Staying on top of important deadlines',
+        'Following up on calls, emails, or applications',
+        'Keeping track of next steps when life feels chaotic'
       ]
     },
     {
-      title: "Technology & Online Tasks",
-      icon: <MonitorIcon />,
-      bgColor: "bg-[#e8f0e8]",
+      title: 'Technology & Online Tasks',
+      icon: 'ri-computer-line',
+      color: 'bg-[#E8F4E8]',
       items: [
-        "Navigating websites, portals, and dashboards",
-        "Understanding emails, forms, or instructions",
-        "Troubleshooting basic tech or account issues",
-        "Walking through online processes step by step"
+        'Navigating websites, portals, and dashboards',
+        'Understanding emails, forms, or instructions',
+        'Troubleshooting basic tech or account issues',
+        'Walking through online processes step by step'
       ]
     },
     {
-      title: "Preparation & Guidance",
-      icon: <LightbulbIcon />,
-      bgColor: "bg-white",
+      title: 'Preparation & Guidance',
+      icon: 'ri-lightbulb-line',
+      color: 'bg-[#FFF8F0]',
       items: [
-        "Preparing for important calls or meetings",
-        "Understanding what questions to ask",
-        "Organizing documents or information",
-        "Talking through options before making decisions"
+        'Preparing for important calls or meetings',
+        'Understanding what questions to ask',
+        'Organizing documents or information',
+        'Talking through options before making decisions'
       ]
     },
     {
-      title: "Emotional Support (Non-Therapy)",
-      icon: <HeartHandIcon />,
-      bgColor: "bg-[#f0e8f0]",
+      title: 'Emotional Support (Non-Therapy)',
+      icon: 'ri-heart-pulse-line',
+      color: 'bg-[#E8E0F4]',
       items: [
-        "Having someone listen without judgment",
-        "Feeling supported during stressful situations",
-        "Talking things through when you feel stuck or overwhelmed"
+        'Having someone listen without judgment',
+        'Feeling supported during stressful situations',
+        'Talking things through when you feel stuck or overwhelmed'
       ]
     }
   ]
 
   return (
-    <section className="py-20 bg-white">
+    <section id="services" className="py-20 bg-[#FFF8F0]">
       <div className="max-w-7xl mx-auto px-6">
-        <h2 className="text-3xl lg:text-4xl font-serif font-bold text-gray-900 mb-4">
-          What Can My Care Personal Assistant Help With?
-        </h2>
-        <p className="text-gray-600 mb-12 max-w-3xl">
-          Care assistants are trained to support real-life challenges, not just one narrow task. Here are common ways people use My Care:
-        </p>
+        <div className="mb-12">
+          <h2 className="font-serif text-4xl lg:text-5xl font-bold text-[#2C2C2C] mb-6">
+            What Can My Care Personal Assistant Help With?
+          </h2>
+          <p className="text-lg text-[#6B6B6B] leading-relaxed max-w-4xl">
+            MyCarePA assistants are trained to support real-life challenges, not just one narrow task.
+            Here are common ways people use MyCarePA:
+          </p>
+        </div>
 
-        <div className="grid md:grid-cols-2 gap-6">
-          {services.map((service, index) => (
-            <div key={index} className={`${service.bgColor} rounded-2xl p-8`}>
-              <div className="flex items-center gap-3 mb-6">
-                {service.icon}
-                <h3 className="text-xl font-semibold text-gray-900">{service.title}</h3>
+        <div className="grid md:grid-cols-2 gap-6 mb-8">
+          {categories.map((category, index) => (
+            <div
+              key={index}
+              className={`${category.color} rounded-2xl p-8`}
+            >
+              <div className="flex items-start gap-4 mb-6">
+                <div className="w-12 h-12 flex items-center justify-center">
+                  <i className={`${category.icon} text-4xl text-[#2C2C2C]`}></i>
+                </div>
+                <h3 className="font-serif text-2xl font-semibold text-[#2C2C2C] flex-1">
+                  {category.title}
+                </h3>
               </div>
               <ul className="space-y-3">
-                {service.items.map((item, i) => (
-                  <li key={i} className="flex items-start gap-3">
-                    <HeartIcon className="w-4 h-4 text-[#8fbc8f] mt-1 flex-shrink-0" />
-                    <span className="text-gray-600">{item}</span>
+                {category.items.map((item, idx) => (
+                  <li key={idx} className="flex items-start gap-3">
+                    <i className="ri-heart-fill text-[#A8B89F] text-lg mt-1 flex-shrink-0"></i>
+                    <span className="text-[#2C2C2C]">{item}</span>
                   </li>
                 ))}
               </ul>
@@ -386,18 +340,39 @@ function Services() {
           ))}
         </div>
 
-        {/* What We're Not */}
-        <div className="mt-12 border-l-4 border-gray-300 bg-gray-50 rounded-r-2xl p-8">
-          <h3 className="text-xl font-semibold text-gray-900 mb-4">What My Care Is Not</h3>
-          <p className="text-gray-600 mb-4">To set expectations clearly:</p>
-          <ul className="space-y-2 text-gray-600 mb-4">
-            <li>• We do not provide legal, medical, or financial advice</li>
-            <li>• We do not replace licensed professionals</li>
-            <li>• We are not a call center or chatbot</li>
-            <li>• We are not therapy</li>
+        <div className="bg-gray-100 rounded-2xl p-8 border-l-4 border-[#6B6B6B]">
+          <h3 className="font-serif text-2xl font-semibold text-[#2C2C2C] mb-4">
+            What MyCarePA Is Not
+          </h3>
+          <p className="text-[#6B6B6B] leading-relaxed mb-4">
+            To set expectations clearly:
+          </p>
+          <ul className="space-y-2 text-[#6B6B6B]">
+            <li className="flex items-start gap-3">
+              <span>•</span>
+              <span>We do not provide legal, medical, or financial advice</span>
+            </li>
+            <li className="flex items-start gap-3">
+              <span>•</span>
+              <span>We do not replace licensed professionals</span>
+            </li>
+            <li className="flex items-start gap-3">
+              <span>•</span>
+              <span>We are not a call center or chatbot</span>
+            </li>
+            <li className="flex items-start gap-3">
+              <span>•</span>
+              <span>We are not therapy</span>
+            </li>
           </ul>
-          <p className="italic text-gray-600">
-            My Care is about support, clarity, and momentum—not diagnosis or representation.
+          <p className="text-[#2C2C2C] font-medium mt-4 italic">
+            MyCarePA is about support, clarity, and momentum—not diagnosis or representation.
+          </p>
+        </div>
+
+        <div className="mt-12 text-center">
+          <p className="text-lg text-[#6B6B6B] italic">
+            If you're unsure whether we can help with something, that's okay. We'll figure it out together during your first call.
           </p>
         </div>
       </div>
@@ -405,142 +380,155 @@ function Services() {
   )
 }
 
-// Pricing Section
+// Pricing Section with Stripe Integration
 function Pricing() {
   const plans = [
     {
       id: 'starter',
-      name: "My Care Starter",
-      subtitle: "Light, occasional support",
-      hours: "5",
+      name: 'MyCarePA Starter',
+      bestFor: 'Light, occasional support',
+      hours: '4',
+      price: '$99/month',
       features: [
-        "Up to 5 hours per month",
-        "Phone calls and messages",
-        "Email follow-ups",
-        "Flexible scheduling"
-      ]
+        'Up to 4 hours per month',
+        'Phone calls and messages',
+        'Email follow-ups',
+        'Flexible scheduling'
+      ],
+      popular: false
     },
     {
-      id: 'professional',
-      name: "My Care Plus",
-      subtitle: "Regular guidance & follow-ups",
-      hours: "10",
+      id: 'plus',
+      name: 'MyCarePA Plus',
+      bestFor: 'Regular guidance & follow-ups',
+      hours: '10',
+      price: '$249/month',
       features: [
-        "Up to 10 hours per month",
-        "Priority response times",
-        "Phone calls and messages",
-        "Document organization support",
-        "Weekly check-ins"
-      ]
+        'Up to 10 hours per month',
+        'Priority response times',
+        'Phone calls and messages',
+        'Document organization support',
+        'Weekly check-ins'
+      ],
+      popular: true
     },
     {
-      id: 'enterprise',
-      name: "My Care Pro",
-      subtitle: "High-touch, ongoing support",
-      hours: "20+",
+      id: 'pro',
+      name: 'MyCarePA Pro',
+      bestFor: 'High-touch, ongoing support',
+      hours: '20',
+      price: '$499/month',
       features: [
-        "20+ hours per month",
-        "Dedicated assistant",
-        "Same-day response",
-        "Comprehensive support",
-        "Daily availability",
-        "Custom scheduling"
-      ]
+        '20+ hours per month',
+        'Dedicated assistant',
+        'Same-day response',
+        'Comprehensive support',
+        'Daily availability',
+        'Custom scheduling'
+      ],
+      popular: false
     }
   ]
 
   return (
-    <section id="pricing" className="py-20 bg-[#fdf8f6]">
+    <section id="pricing" className="py-20 bg-white">
       <div className="max-w-7xl mx-auto px-6">
         <div className="text-center mb-12">
-          <span className="inline-block bg-[#7c8b7c] text-white px-6 py-2 rounded-full text-sm font-medium mb-6">
-            SIMPLE, TRANSPARENT PRICING
+          <span className="inline-block px-6 py-2 bg-[#A8B89F] text-white text-sm font-medium uppercase tracking-wider rounded-full">
+            Simple, Transparent Pricing
           </span>
-          <h2 className="text-3xl lg:text-4xl font-serif font-bold text-gray-900">
+          <h2 className="font-serif text-4xl lg:text-5xl font-bold text-[#2C2C2C] mt-6">
             Pricing & Plans
           </h2>
         </div>
 
-        {/* Free Trial Card */}
-        <div className="bg-[#fde4db] rounded-2xl p-8 mb-12 relative max-w-4xl mx-auto">
-          <span className="absolute top-4 right-4 bg-[#7c8b7c] text-white px-4 py-1 rounded-full text-sm font-medium">
-            Most Popular
-          </span>
-          <h3 className="text-2xl font-serif font-bold text-gray-900 mb-2">Free Trial</h3>
-          <p className="text-gray-700 mb-6">Try My Care for 1 month at no cost!</p>
-          <ul className="space-y-3 mb-8">
-            <li className="flex items-center gap-3">
-              <CheckIcon className="w-5 h-5 text-[#7c8b7c]" />
-              <span className="text-gray-700">3 hours of personal assistant support</span>
-            </li>
-            <li className="flex items-center gap-3">
-              <CheckIcon className="w-5 h-5 text-[#7c8b7c]" />
-              <span className="text-gray-700">Phone calls, messages, and follow-ups</span>
-            </li>
-            <li className="flex items-center gap-3">
-              <CheckIcon className="w-5 h-5 text-[#7c8b7c]" />
-              <span className="text-gray-700">No obligation to continue</span>
-            </li>
-          </ul>
-          <button
-            onClick={() => handleCheckout('starter')}
-            className="w-full bg-[#7c8b7c] hover:bg-[#6b7a6b] text-white py-4 rounded-full font-semibold text-lg transition-colors"
-          >
-            Start Your Free Trial
-          </button>
-        </div>
-
-        {/* Ongoing Plans */}
-        <h3 className="text-2xl font-serif font-bold text-gray-900 text-center mb-8">
-          Ongoing Support Plans
-        </h3>
-
-        <div className="grid md:grid-cols-3 gap-6">
-          {plans.map((plan) => (
-            <div key={plan.id} className="bg-white rounded-2xl p-8 border border-gray-200">
-              <h4 className="text-xl font-semibold text-gray-900 mb-1">{plan.name}</h4>
-              <p className="text-gray-500 italic mb-6">{plan.subtitle}</p>
-
-              <div className="mb-6">
-                <span className="text-5xl font-light text-[#7c8b7c]">{plan.hours}</span>
-                <span className="text-gray-500 ml-2">hours/month</span>
-              </div>
-
-              <ul className="space-y-3 mb-8">
-                {plan.features.map((feature, i) => (
-                  <li key={i} className="flex items-center gap-3">
-                    <CheckIcon className="w-5 h-5 text-[#7c8b7c]" />
-                    <span className="text-gray-600 text-sm">{feature}</span>
-                  </li>
-                ))}
-              </ul>
-
-              <button
-                onClick={() => handleCheckout(plan.id)}
-                className="w-full border-2 border-[#7c8b7c] text-[#7c8b7c] hover:bg-[#7c8b7c] hover:text-white py-3 rounded-full font-medium transition-colors"
+        <div className="mb-12">
+          <h3 className="font-serif text-3xl font-bold text-[#2C2C2C] text-center mb-8">
+            Ongoing Support Plans
+          </h3>
+          <div className="grid md:grid-cols-3 gap-8">
+            {plans.map((plan) => (
+              <div
+                key={plan.id}
+                className={`${
+                  plan.popular ? 'bg-[#FFD4C4]' : 'bg-white'
+                } border-2 ${
+                  plan.popular ? 'border-[#A8B89F]' : 'border-gray-200'
+                } rounded-2xl p-8 hover:border-[#A8B89F] hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer relative ${
+                  plan.popular ? 'pt-16' : ''
+                }`}
               >
-                Get Started
-              </button>
-            </div>
-          ))}
+                {plan.popular && (
+                  <div className="absolute top-4 right-4 bg-[#A8B89F] text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-semibold">
+                    Most Popular
+                  </div>
+                )}
+                <h4 className="font-serif text-2xl font-bold text-[#2C2C2C] mb-2">
+                  {plan.name}
+                </h4>
+                <p className="text-[#6B6B6B] italic mb-6">{plan.bestFor}</p>
+                <div className="mb-6">
+                  <div className="text-5xl font-bold text-[#A8B89F] mb-2">
+                    {plan.hours}
+                  </div>
+                  <div className="text-[#6B6B6B]">hours/month</div>
+                </div>
+                <ul className="space-y-3 mb-8">
+                  {plan.features.map((feature, idx) => (
+                    <li key={idx} className="flex items-start gap-3">
+                      <i className="ri-checkbox-circle-fill text-[#A8B89F] text-lg mt-0.5 flex-shrink-0"></i>
+                      <span className="text-[#2C2C2C] text-sm">{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+                <button
+                  onClick={() => handleCheckout(plan.id)}
+                  className={`${
+                    plan.popular ? 'group relative overflow-hidden' : ''
+                  } w-full px-6 py-3 bg-[#A8B89F] text-white font-semibold rounded-full hover:shadow-lg hover:-translate-y-1 transition-all duration-300 whitespace-nowrap cursor-pointer ${
+                    plan.popular ? 'hover:scale-105' : ''
+                  }`}
+                >
+                  {plan.popular ? (
+                    <>
+                      <span className="relative z-10">Buy Now - {plan.price}</span>
+                      <div className="absolute inset-0 bg-gradient-to-r from-[#A8B89F] via-[#8FA085] to-[#A8B89F] bg-[length:200%_100%] animate-shimmer"></div>
+                    </>
+                  ) : (
+                    `Buy Now - ${plan.price}`
+                  )}
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
 
-        <p className="text-center text-gray-500 mt-8 italic">
-          Exact pricing and plan details are discussed after your trial, based on how you actually use the service. We believe pricing should match real value, not rigid packages.
-        </p>
-
-        {/* After Trial */}
-        <div className="bg-[#fdf8f6] border border-gray-200 rounded-2xl p-8 mt-12 max-w-2xl mx-auto">
-          <h4 className="text-xl font-semibold text-gray-900 text-center mb-4">
-            What Happens After the Trial?
-          </h4>
-          <p className="text-gray-600 text-center mb-4">Near the end of your trial:</p>
-          <ul className="space-y-2 text-gray-600 mb-4">
-            <li>• You'll review how you used your time</li>
-            <li>• We'll talk about what helped most</li>
-            <li>• You decide if you want to continue—and at what level</li>
-          </ul>
-          <p className="text-center font-semibold text-gray-900">No pressure. No surprises.</p>
+        <div className="max-w-3xl mx-auto text-center space-y-6">
+          <div className="bg-[#FFF8F0] rounded-2xl p-8">
+            <h4 className="font-serif text-2xl font-semibold text-[#2C2C2C] mb-4">
+              What Happens When You Start to Run Out of Time?
+            </h4>
+            <p className="text-[#6B6B6B] leading-relaxed mb-4">
+              Near the end of your term:
+            </p>
+            <ul className="space-y-2 text-[#6B6B6B] text-left max-w-xl mx-auto">
+              <li className="flex items-start gap-3">
+                <span>•</span>
+                <span>You'll review how you used your time</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <span>•</span>
+                <span>We'll talk about what helped most</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <span>•</span>
+                <span>You decide if you want to continue—and at what level</span>
+              </li>
+            </ul>
+            <p className="text-[#2C2C2C] font-medium mt-4">
+              No pressure. No surprises.
+            </p>
+          </div>
         </div>
       </div>
     </section>
@@ -549,76 +537,85 @@ function Pricing() {
 
 // FAQ Section
 function FAQ() {
-  const [openIndex, setOpenIndex] = useState<number | null>(0)
+  const [openIndex, setOpenIndex] = useState<number | null>(null)
 
   const faqs = [
     {
-      question: "Who is My Care for?",
-      answer: "My Care is for people who feel overwhelmed or stuck, want help but don't know where to start, are tired of automated systems and endless menus, or just want someone to help them think clearly. If that sounds like you, My Care was built for you."
+      question: 'How does My Care Personal Assistant work?',
+      answer: "After signing up, you'll be matched with a dedicated personal assistant based on your needs. You can communicate via phone, email, or our secure messaging platform. Your assistant will help you with tasks, provide support, and keep you organized."
     },
     {
-      question: "How is this different from therapy?",
-      answer: "My Care provides practical support and guidance, not mental health treatment. We help with tasks, organization, and decision-making. For mental health concerns, we recommend working with a licensed therapist."
+      question: 'What tasks can my personal assistant help with?',
+      answer: "Your assistant can help with appointment scheduling, bill payments, travel planning, errands, home organization, event coordination, research, and general life management tasks. If you're unsure about a specific task, just ask!"
     },
     {
-      question: "What if I don't know what I need help with?",
-      answer: "That's completely okay! Many people start without a clear list. Your assistant will help you identify what's weighing on you and break it down into manageable steps."
+      question: 'Is my information kept confidential?',
+      answer: 'Absolutely. All our assistants sign strict confidentiality agreements. Your personal information, conversations, and tasks are kept completely private and secure. We take data protection very seriously.'
     },
     {
-      question: "Are my conversations confidential?",
-      answer: "Yes. Your conversations and personal information are kept strictly confidential. We take your privacy seriously."
+      question: 'Can I change my plan or cancel anytime?',
+      answer: 'Yes! You can upgrade, downgrade, or cancel your plan at any time. Changes take effect at the end of your current billing period. There are no long-term contracts or cancellation fees.'
     },
     {
-      question: "Can I change my plan or cancel anytime?",
-      answer: "Absolutely. You can upgrade, downgrade, or cancel your plan at any time. No long-term commitments required."
+      question: 'What if I need help outside business hours?',
+      answer: 'Our Plus and Premium plans include extended hours and priority support. For urgent matters, you can leave a message and your assistant will respond as soon as possible. Premium members get 24/7 emergency support.'
     },
     {
-      question: "What happens during the free trial?",
-      answer: "During your free trial, you'll get 3 hours of support to experience how My Care works. Use it for whatever you need—organizing tasks, getting unstuck, or just having someone to think through problems with."
-    },
-    {
-      question: "How quickly can I get started?",
-      answer: "Most people are matched with an assistant within 24-48 hours of signing up. We'll reach out to schedule your first session at a time that works for you."
-    },
-    {
-      question: "What if I need help outside of business hours?",
-      answer: "We offer flexible scheduling including evenings and weekends for Pro members. Starter and Plus members have standard business hours availability with some flexibility."
+      question: 'How quickly will my assistant respond?',
+      answer: 'Standard response time is within 2 hours during business hours (9 AM - 6 PM). Plus members get 1-hour response times, and Premium members receive priority responses within 30 minutes.'
     }
   ]
 
   return (
-    <section className="py-20 bg-[#4a5548]">
+    <section id="faq" className="py-20 bg-[#2C2C2C]">
       <div className="max-w-7xl mx-auto px-6">
-        <h2 className="text-3xl lg:text-4xl font-serif italic text-white text-center mb-12">
-          Frequently Asked Questions
-        </h2>
+        <div className="text-center mb-16">
+          <h2 className="font-serif text-4xl lg:text-5xl font-bold text-white italic">
+            Frequently Asked Questions
+          </h2>
+        </div>
 
-        <div className="grid lg:grid-cols-2 gap-12 items-start">
-          <div className="space-y-4">
+        <div className="grid lg:grid-cols-3 gap-12 items-start">
+          <div className="lg:col-span-2 space-y-4">
             {faqs.map((faq, index) => (
-              <div key={index} className="bg-white rounded-xl overflow-hidden">
+              <div
+                key={index}
+                className="bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-lg transition-shadow duration-300"
+              >
                 <button
                   onClick={() => setOpenIndex(openIndex === index ? null : index)}
-                  className="w-full flex items-center justify-between p-6 text-left"
+                  className="w-full px-8 py-6 flex items-center justify-between text-left cursor-pointer hover:bg-gray-50 transition-colors duration-200"
                 >
-                  <span className="font-medium text-gray-900">{faq.question}</span>
-                  {openIndex === index ? <MinusIcon /> : <PlusIcon />}
+                  <span className="font-semibold text-lg text-[#2C2C2C] pr-4">
+                    {faq.question}
+                  </span>
+                  <i
+                    className={`${
+                      openIndex === index ? 'ri-subtract-line' : 'ri-add-line'
+                    } text-2xl text-[#A8B89F] flex-shrink-0 transition-transform duration-300`}
+                  ></i>
                 </button>
-                {openIndex === index && (
-                  <div className="px-6 pb-6">
-                    <p className="text-gray-600">{faq.answer}</p>
+                <div
+                  className={`overflow-hidden transition-all duration-300 ${
+                    openIndex === index ? 'max-h-96' : 'max-h-0'
+                  }`}
+                >
+                  <div className="px-8 pb-6 text-[#6B6B6B] leading-relaxed">
+                    {faq.answer}
                   </div>
-                )}
+                </div>
               </div>
             ))}
           </div>
 
-          <div className="hidden lg:block">
-            <img
-              src="https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=500&h=600&fit=crop"
-              alt="Smiling professional"
-              className="rounded-2xl shadow-lg"
-            />
+          <div className="lg:col-span-1">
+            <div className="sticky top-24">
+              <img
+                src="https://readdy.ai/api/search-image?query=A%20friendly%20caring%20personal%20assistant%20smiling%20warmly%20looking%20toward%20the%20left%20side%20of%20screen%20in%20a%20bright%20welcoming%20office%20with%20plants%20and%20natural%20light%20professional%20yet%20approachable%20atmosphere%20showing%20trust%20and%20reliability%20soft%20focus%20background&width=500&height=700&seq=faq001&orientation=portrait"
+                alt="Friendly assistant"
+                className="rounded-3xl shadow-2xl w-full h-auto object-cover"
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -627,115 +624,155 @@ function FAQ() {
 }
 
 // Contact Form Section
-function ContactForm() {
+function Contact() {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     phone: '',
     message: ''
   })
+  const [status, setStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle')
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    handleCheckout('starter')
+    setStatus('submitting')
+
+    // Trigger Stripe checkout for starter plan
+    try {
+      await handleCheckout('starter')
+      setStatus('success')
+    } catch {
+      setStatus('error')
+      setTimeout(() => setStatus('idle'), 5000)
+    }
+  }
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    })
   }
 
   return (
     <section id="contact" className="py-20 bg-white">
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="grid lg:grid-cols-2 gap-0 overflow-hidden rounded-2xl">
-          <div className="bg-[#fde4db] p-8 flex items-center justify-center">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+        <div className="grid lg:grid-cols-2 gap-0 rounded-3xl overflow-hidden shadow-2xl">
+          <div className="bg-gradient-to-br from-[#FFD4C4] to-[#FFF8F0] p-8 sm:p-12 flex items-center">
             <img
-              src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=500&h=600&fit=crop"
-              alt="Team collaboration"
-              className="rounded-2xl shadow-lg max-w-md w-full"
+              src="https://readdy.ai/api/search-image?query=A%20diverse%20caring%20team%20of%20personal%20assistants%20in%20a%20bright%20welcoming%20modern%20office%20space%20with%20plants%20and%20natural%20light%20all%20smiling%20warmly%20and%20looking%20toward%20the%20right%20side%20showing%20professionalism%20trust%20and%20approachability%20warm%20tones%20and%20soft%20lighting&width=600&height=800&seq=team001&orientation=portrait"
+              alt="My Care team"
+              className="rounded-2xl shadow-xl w-full h-auto object-cover"
             />
           </div>
 
-          <div className="bg-white p-8 lg:p-12">
-            <h2 className="text-3xl font-serif font-bold text-gray-900 mb-2">
+          <div className="bg-white p-6 sm:p-12">
+            <h2 className="font-serif text-3xl sm:text-4xl font-bold text-[#2C2C2C] mb-4">
               Ready to Get Started?
             </h2>
-            <p className="text-gray-600 mb-8">
+            <p className="text-base sm:text-lg text-[#6B6B6B] mb-8">
               You don't need a perfect plan. You just need a starting point.
             </p>
 
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="name" className="block text-sm font-medium text-[#2C2C2C] mb-2">
                   Full Name *
                 </label>
                 <input
                   type="text"
-                  placeholder="Your name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({...formData, name: e.target.value})}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7c8b7c] focus:border-transparent outline-none"
+                  id="name"
+                  name="name"
                   required
+                  value={formData.name}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-[#A8B89F] focus:outline-none transition-colors duration-200"
+                  placeholder="Your name"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="email" className="block text-sm font-medium text-[#2C2C2C] mb-2">
                   Email Address *
                 </label>
                 <input
                   type="email"
-                  placeholder="your@email.com"
-                  value={formData.email}
-                  onChange={(e) => setFormData({...formData, email: e.target.value})}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7c8b7c] focus:border-transparent outline-none"
+                  id="email"
+                  name="email"
                   required
+                  value={formData.email}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-[#A8B89F] focus:outline-none transition-colors duration-200"
+                  placeholder="your@email.com"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="phone" className="block text-sm font-medium text-[#2C2C2C] mb-2">
                   Phone Number
                 </label>
                 <input
                   type="tel"
-                  placeholder="(555) 123-4567"
+                  id="phone"
+                  name="phone"
                   value={formData.phone}
-                  onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7c8b7c] focus:border-transparent outline-none"
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-[#A8B89F] focus:outline-none transition-colors duration-200"
+                  placeholder="(555) 123-4567"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="message" className="block text-sm font-medium text-[#2C2C2C] mb-2">
                   Tell us a bit about what you need help with
                 </label>
                 <textarea
-                  placeholder="Optional - share what's on your mind..."
-                  value={formData.message}
-                  onChange={(e) => setFormData({...formData, message: e.target.value})}
+                  id="message"
+                  name="message"
                   rows={4}
                   maxLength={500}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7c8b7c] focus:border-transparent outline-none resize-none"
-                />
-                <p className="text-sm text-gray-500 mt-1">{formData.message.length}/500 characters</p>
+                  value={formData.message}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-[#A8B89F] focus:outline-none transition-colors duration-200 resize-none"
+                  placeholder="Optional - share what's on your mind..."
+                ></textarea>
+                <p className="text-sm text-[#6B6B6B] mt-1">
+                  {formData.message.length}/500 characters
+                </p>
               </div>
 
               <button
                 type="submit"
-                className="w-full bg-[#7c8b7c] hover:bg-[#6b7a6b] text-white py-4 rounded-lg font-semibold text-lg transition-colors"
+                disabled={status === 'submitting'}
+                className="w-full px-8 py-4 bg-[#A8B89F] text-white text-lg font-semibold rounded-full hover:shadow-xl hover:-translate-y-1 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap cursor-pointer"
               >
-                Start Your Free Trial
+                {status === 'submitting' ? 'Processing...' : 'Get Started'}
               </button>
+
+              {status === 'success' && (
+                <div className="p-4 bg-green-50 border border-green-200 rounded-lg text-green-800 text-center">
+                  Thank you! Redirecting to checkout...
+                </div>
+              )}
+
+              {status === 'error' && (
+                <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-800 text-center">
+                  Something went wrong. Please try again.
+                </div>
+              )}
             </form>
 
-            <div className="flex items-center justify-center gap-6 mt-6 text-sm text-gray-600">
+            <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-8 text-sm text-[#6B6B6B]">
               <div className="flex items-center gap-2">
-                <ShieldCheckIcon />
+                <i className="ri-shield-check-line text-[#A8B89F] text-xl"></i>
                 <span>Trained Professionals</span>
               </div>
               <div className="flex items-center gap-2">
-                <LockIcon />
+                <i className="ri-lock-line text-[#A8B89F] text-xl"></i>
                 <span>Confidential</span>
               </div>
               <div className="flex items-center gap-2">
-                <CheckIcon className="w-5 h-5 text-[#7c8b7c]" />
+                <i className="ri-checkbox-circle-line text-[#A8B89F] text-xl"></i>
                 <span>No Obligation</span>
               </div>
             </div>
@@ -749,73 +786,106 @@ function ContactForm() {
 // Footer Component
 function Footer() {
   return (
-    <footer className="bg-[#3d4a3d] text-white">
-      <div className="max-w-7xl mx-auto px-6 py-16">
-        <div className="grid md:grid-cols-4 gap-8 mb-12">
+    <footer className="bg-[#2C2C2C] text-white">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 sm:gap-12 mb-12 sm:mb-16">
           <div>
             <div className="flex items-center gap-2 mb-4">
-              <HeartIcon className="w-6 h-6 text-[#8fbc8f]" />
-              <span className="font-semibold">My Care Personal Assistant™</span>
+              <i className="ri-heart-fill text-[#A8B89F] text-2xl"></i>
+              <span className="font-serif text-xl font-semibold">My Care Personal Assistant™</span>
             </div>
-            <p className="text-gray-400 text-sm">
+            <p className="text-gray-400 text-sm leading-relaxed mb-6">
               Real human support when you need help most. Personal assistance for everyone.
             </p>
           </div>
 
           <div>
-            <h4 className="font-semibold text-gray-300 mb-4">QUICK LINKS</h4>
-            <ul className="space-y-2 text-gray-400">
-              <li><a href="#" className="hover:text-white transition-colors">Home</a></li>
-              <li><a href="#how-it-works" className="hover:text-white transition-colors">How It Works</a></li>
-              <li><a href="#" className="hover:text-white transition-colors">Services</a></li>
-              <li><a href="#pricing" className="hover:text-white transition-colors">Pricing</a></li>
-              <li><a href="#" className="hover:text-white transition-colors">Contact</a></li>
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-400 mb-4">
+              Quick Links
+            </h3>
+            <ul className="space-y-3">
+              <li>
+                <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="text-white hover:text-[#A8B89F] transition-colors duration-200 cursor-pointer">
+                  Home
+                </button>
+              </li>
+              <li>
+                <button onClick={() => scrollToSection('how-it-works')} className="text-white hover:text-[#A8B89F] transition-colors duration-200 cursor-pointer">
+                  How It Works
+                </button>
+              </li>
+              <li>
+                <button onClick={() => scrollToSection('services')} className="text-white hover:text-[#A8B89F] transition-colors duration-200 cursor-pointer">
+                  Services
+                </button>
+              </li>
+              <li>
+                <button onClick={() => scrollToSection('pricing')} className="text-white hover:text-[#A8B89F] transition-colors duration-200 cursor-pointer">
+                  Pricing
+                </button>
+              </li>
+              <li>
+                <button onClick={() => scrollToSection('contact')} className="text-white hover:text-[#A8B89F] transition-colors duration-200 cursor-pointer">
+                  Contact
+                </button>
+              </li>
             </ul>
           </div>
 
           <div>
-            <h4 className="font-semibold text-gray-300 mb-4">SUPPORT</h4>
-            <ul className="space-y-2 text-gray-400">
-              <li><a href="#" className="hover:text-white transition-colors">Privacy Policy</a></li>
-              <li><a href="#" className="hover:text-white transition-colors">Terms of Service</a></li>
-              <li><a href="#" className="hover:text-white transition-colors">Assistant Guidelines</a></li>
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-400 mb-4">
+              Support
+            </h3>
+            <ul className="space-y-3">
+              <li>
+                <a href="#" className="text-white hover:text-[#A8B89F] transition-colors duration-200">
+                  Privacy Policy
+                </a>
+              </li>
+              <li>
+                <a href="#" className="text-white hover:text-[#A8B89F] transition-colors duration-200">
+                  Terms of Service
+                </a>
+              </li>
+              <li>
+                <a href="#" className="text-white hover:text-[#A8B89F] transition-colors duration-200">
+                  Assistant Guidelines
+                </a>
+              </li>
             </ul>
           </div>
 
           <div>
-            <h4 className="font-semibold text-gray-300 mb-4">STAY CONNECTED</h4>
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-400 mb-4">
+              Stay Connected
+            </h3>
             <p className="text-gray-400 text-sm mb-4">
-              Get updates and tips for making the most of your personal assistant.
+              Get updates and tips for making the most of your MyCarePA personal assistant.
             </p>
-            <div className="flex gap-2">
+            <form className="flex gap-2">
               <input
                 type="email"
                 placeholder="Your email"
-                className="flex-1 px-4 py-2 bg-[#4a5548] border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-[#8fbc8f]"
+                className="flex-1 px-4 py-2 bg-transparent border border-gray-600 rounded-lg focus:border-[#A8B89F] focus:outline-none text-white placeholder-gray-500 text-sm"
               />
-              <button className="bg-[#7c8b7c] hover:bg-[#6b7a6b] px-4 py-2 rounded-lg transition-colors">
-                →
+              <button
+                type="submit"
+                className="px-4 py-2 bg-[#A8B89F] rounded-lg hover:bg-[#8FA080] transition-colors duration-200 cursor-pointer whitespace-nowrap"
+              >
+                <i className="ri-arrow-right-line text-white"></i>
               </button>
-            </div>
+            </form>
           </div>
         </div>
 
-        {/* Watermark */}
-        <div className="text-center py-8 border-t border-gray-600">
-          <h2 className="text-6xl lg:text-8xl font-serif text-gray-600/30 tracking-wider">
-            MY CARE PERSONAL ASSISTANT™
-          </h2>
-        </div>
-
-        {/* Bottom Bar */}
-        <div className="flex flex-wrap items-center justify-between gap-4 pt-8 border-t border-gray-600 text-sm text-gray-400">
-          <p>© 2025 My Care Personal Assistant™. All rights reserved.</p>
-          <div className="flex items-center gap-4">
-            <span>All assistants are trained professionals</span>
-            <span>•</span>
-            <span>Conversations are confidential</span>
-            <span>•</span>
-            <span>Clear boundaries respected</span>
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-xs sm:text-sm text-gray-400">
+          <p className="text-center md:text-left">© 2025 My Care Personal Assistant™. All rights reserved.</p>
+          <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-6 text-center">
+            <p>All assistants are trained professionals</p>
+            <span className="hidden sm:inline">•</span>
+            <p>Conversations are confidential</p>
+            <span className="hidden sm:inline">•</span>
+            <p>Clear boundaries respected</p>
           </div>
         </div>
       </div>
@@ -825,16 +895,31 @@ function Footer() {
 
 // Main App
 function App() {
+  const [showBanner, setShowBanner] = useState(false)
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 100) {
+        setShowBanner(true)
+      } else {
+        setShowBanner(false)
+      }
+    }
+
+    window.addEventListener('scroll', handleScroll)
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
+
   return (
-    <div className="min-h-screen">
-      <Header />
+    <div className="min-h-screen bg-white">
+      <StickyBanner show={showBanner} />
       <Hero />
-      <About />
+      <WhatIsMyCare />
       <HowItWorks />
       <Services />
       <Pricing />
       <FAQ />
-      <ContactForm />
+      <Contact />
       <Footer />
     </div>
   )
