@@ -265,6 +265,91 @@ app.post('/api/webhook', express.raw({ type: 'application/json' }), async (req, 
   res.json({ received: true });
 });
 
+// Verify customer by email and check usage
+app.post('/api/verify-customer', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    // Search for customer by email
+    const customers = await stripe.customers.list({
+      email: email.toLowerCase(),
+      limit: 1,
+    });
+
+    if (customers.data.length === 0) {
+      return res.status(404).json({
+        error: 'No subscription found',
+        canSchedule: false,
+        message: 'No active subscription found for this email. Please subscribe first.'
+      });
+    }
+
+    const customer = customers.data[0];
+
+    // Get active subscription
+    const subscriptions = await stripe.subscriptions.list({
+      customer: customer.id,
+      status: 'active',
+      limit: 1,
+    });
+
+    if (subscriptions.data.length === 0) {
+      return res.status(404).json({
+        error: 'No active subscription',
+        canSchedule: false,
+        message: 'Your subscription is not active. Please renew to schedule meetings.'
+      });
+    }
+
+    const subscription = subscriptions.data[0];
+    const plan = subscription.metadata.plan || 'starter';
+    const includedHours = parseInt(subscription.metadata.included_hours || '5');
+
+    // Get usage for current billing period
+    let usedHours = 0;
+    try {
+      if (process.env.MYCARE_METER_ID) {
+        const meterSummary = await stripe.billing.meters.listEventSummaries(
+          process.env.MYCARE_METER_ID,
+          {
+            customer: customer.id,
+            start_time: subscription.current_period_start,
+            end_time: Math.floor(Date.now() / 1000),
+          }
+        );
+        usedHours = meterSummary.data.reduce((sum, event) => sum + parseFloat(event.aggregated_value || 0), 0);
+      }
+    } catch (meterError) {
+      console.log('Meter lookup skipped:', meterError.message);
+    }
+
+    const remainingHours = Math.max(0, includedHours - usedHours);
+    const canSchedule = remainingHours > 0;
+
+    res.json({
+      canSchedule,
+      customerId: customer.id,
+      customerName: customer.name || '',
+      email: customer.email,
+      plan,
+      includedHours,
+      usedHours,
+      remainingHours,
+      currentPeriodEnd: subscription.current_period_end,
+      message: canSchedule
+        ? `You have ${remainingHours} hours remaining this period.`
+        : 'You have used all your hours this period. Please upgrade your plan to continue.'
+    });
+  } catch (error) {
+    console.error('Error verifying customer:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ status: 'healthy', timestamp: new Date().toISOString() });
@@ -272,17 +357,19 @@ app.get('/api/health', (req, res) => {
 
 // Serve React app for all other routes in production (SPA catch-all)
 if (process.env.NODE_ENV === 'production') {
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'dist', 'index.html'));
-  });
+
+app.use((req, res) => {
+  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+});
 }
 
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, () => {
   console.log(`My Care API server running on http://0.0.0.0:${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log('\nAvailable endpoints:');
   console.log('  POST /api/create-checkout-session - Create subscription checkout');
+  console.log('  POST /api/verify-customer - Verify customer email and check usage');
   console.log('  POST /api/report-usage - Report hours used');
   console.log('  GET  /api/usage/:customerId - Get customer usage');
   console.log('  GET  /api/prices - Get available plans');
