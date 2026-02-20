@@ -3,6 +3,7 @@ import Stripe from 'stripe';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { Resend } from 'resend';
 import 'dotenv/config';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -10,6 +11,22 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+
+// Initialize Resend
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
+
+// In-memory store for verification codes (email -> { code, expiry })
+const verificationCodes = new Map();
+
+// Clean up expired codes every 5 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [email, data] of verificationCodes.entries()) {
+    if (data.expiry < now) {
+      verificationCodes.delete(email);
+    }
+  }
+}, 5 * 60 * 1000);
 
 // Middleware
 app.use(cors());
@@ -271,8 +288,8 @@ app.post('/api/webhook', express.raw({ type: 'application/json' }), async (req, 
   res.json({ received: true });
 });
 
-// Verify customer by email and check usage
-app.post('/api/verify-customer', async (req, res) => {
+// Send verification code to email
+app.post('/api/send-verification-code', async (req, res) => {
   try {
     const { email } = req.body;
 
@@ -280,9 +297,139 @@ app.post('/api/verify-customer', async (req, res) => {
       return res.status(400).json({ error: 'Email is required' });
     }
 
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // Check if customer exists with active subscription
+    const customers = await stripe.customers.list({
+      email: normalizedEmail,
+      limit: 1,
+    });
+
+    if (customers.data.length === 0) {
+      return res.status(404).json({
+        error: 'No subscription found',
+        message: 'No active subscription found for this email. Please subscribe first.'
+      });
+    }
+
+    const customer = customers.data[0];
+
+    // Check for active subscription
+    const subscriptions = await stripe.subscriptions.list({
+      customer: customer.id,
+      status: 'active',
+      limit: 1,
+    });
+
+    if (subscriptions.data.length === 0) {
+      return res.status(404).json({
+        error: 'No active subscription',
+        message: 'Your subscription is not active. Please renew to schedule meetings.'
+      });
+    }
+
+    // Generate 6-digit code
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // Store code with 10-minute expiry
+    verificationCodes.set(normalizedEmail, {
+      code,
+      expiry: Date.now() + 10 * 60 * 1000, // 10 minutes
+      attempts: 0
+    });
+
+    // Send email via Resend
+    if (resend) {
+      await resend.emails.send({
+        from: process.env.RESEND_FROM_EMAIL || 'MyCarePA <onboarding@resend.dev>',
+        to: normalizedEmail,
+        subject: 'Your MyCarePA Verification Code',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 20px;">
+            <div style="text-align: center; margin-bottom: 20px;">
+              <h1 style="color: #A8B89F; margin: 0;">MyCarePA</h1>
+            </div>
+            <div style="background: #FFF8F0; border-radius: 12px; padding: 30px; text-align: center;">
+              <p style="color: #6B6B6B; margin-bottom: 20px;">Your verification code is:</p>
+              <div style="font-size: 36px; font-weight: bold; color: #2C2C2C; letter-spacing: 8px; margin-bottom: 20px;">${code}</div>
+              <p style="color: #6B6B6B; font-size: 14px;">This code expires in 10 minutes.</p>
+            </div>
+            <p style="color: #999; font-size: 12px; text-align: center; margin-top: 20px;">
+              If you didn't request this code, please ignore this email.
+            </p>
+          </div>
+        `,
+      });
+    } else {
+      console.log(`[DEV] Verification code for ${normalizedEmail}: ${code}`);
+    }
+
+    res.json({
+      success: true,
+      message: 'Verification code sent to your email.',
+      // Include code in dev mode for testing
+      ...(process.env.NODE_ENV !== 'production' && { _devCode: code })
+    });
+  } catch (error) {
+    console.error('Error sending verification code:', error);
+    res.status(500).json({ error: 'Failed to send verification code. Please try again.' });
+  }
+});
+
+// Verify customer by email and check usage
+app.post('/api/verify-customer', async (req, res) => {
+  try {
+    const { email, code } = req.body;
+
+    if (!email || !code) {
+      return res.status(400).json({ error: 'Email and verification code are required' });
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // Verify the code
+    const storedData = verificationCodes.get(normalizedEmail);
+
+    if (!storedData) {
+      return res.status(400).json({
+        error: 'Invalid or expired code',
+        message: 'Please request a new verification code.'
+      });
+    }
+
+    // Check if code has expired
+    if (Date.now() > storedData.expiry) {
+      verificationCodes.delete(normalizedEmail);
+      return res.status(400).json({
+        error: 'Code expired',
+        message: 'Your verification code has expired. Please request a new one.'
+      });
+    }
+
+    // Check attempts (max 5)
+    if (storedData.attempts >= 5) {
+      verificationCodes.delete(normalizedEmail);
+      return res.status(400).json({
+        error: 'Too many attempts',
+        message: 'Too many incorrect attempts. Please request a new code.'
+      });
+    }
+
+    // Verify the code
+    if (storedData.code !== code) {
+      storedData.attempts++;
+      return res.status(400).json({
+        error: 'Invalid code',
+        message: 'Incorrect verification code. Please try again.'
+      });
+    }
+
+    // Code is valid - delete it so it can't be reused
+    verificationCodes.delete(normalizedEmail);
+
     // Search for customer by email
     const customers = await stripe.customers.list({
-      email: email.toLowerCase(),
+      email: normalizedEmail,
       limit: 1,
     });
 

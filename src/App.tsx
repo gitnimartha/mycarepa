@@ -141,7 +141,8 @@ function SuccessPage() {
 // ============================================
 function SchedulePage() {
   const [email, setEmail] = useState('')
-  const [status, setStatus] = useState<'idle' | 'verifying' | 'verified' | 'no-hours' | 'error'>('idle')
+  const [code, setCode] = useState('')
+  const [status, setStatus] = useState<'idle' | 'sending-code' | 'code-sent' | 'verifying' | 'verified' | 'no-hours' | 'error'>('idle')
   const [customerData, setCustomerData] = useState<{
     canSchedule: boolean
     customerName: string
@@ -153,7 +154,33 @@ function SchedulePage() {
   } | null>(null)
   const [errorMessage, setErrorMessage] = useState('')
 
-  const handleVerify = async (e: React.FormEvent) => {
+  const handleSendCode = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setStatus('sending-code')
+    setErrorMessage('')
+
+    try {
+      const response = await fetch(`${API_URL}/api/send-verification-code`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.toLowerCase() }),
+      })
+      const data = await response.json()
+
+      if (!response.ok) {
+        setErrorMessage(data.message || 'Unable to send verification code.')
+        setStatus('error')
+        return
+      }
+
+      setStatus('code-sent')
+    } catch {
+      setErrorMessage('Network error. Please try again.')
+      setStatus('error')
+    }
+  }
+
+  const handleVerifyCode = async (e: React.FormEvent) => {
     e.preventDefault()
     setStatus('verifying')
     setErrorMessage('')
@@ -162,13 +189,13 @@ function SchedulePage() {
       const response = await fetch(`${API_URL}/api/verify-customer`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.toLowerCase() }),
+        body: JSON.stringify({ email: email.toLowerCase(), code }),
       })
       const data = await response.json()
 
       if (!response.ok) {
-        setErrorMessage(data.message || 'Unable to verify subscription.')
-        setStatus('error')
+        setErrorMessage(data.message || 'Unable to verify code.')
+        setStatus('code-sent') // Stay on code entry screen
         return
       }
 
@@ -180,7 +207,33 @@ function SchedulePage() {
       }
     } catch {
       setErrorMessage('Network error. Please try again.')
-      setStatus('error')
+      setStatus('code-sent')
+    }
+  }
+
+  const handleResendCode = async () => {
+    setCode('')
+    setErrorMessage('')
+    setStatus('sending-code')
+
+    try {
+      const response = await fetch(`${API_URL}/api/send-verification-code`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.toLowerCase() }),
+      })
+      const data = await response.json()
+
+      if (!response.ok) {
+        setErrorMessage(data.message || 'Unable to send verification code.')
+        setStatus('code-sent')
+        return
+      }
+
+      setStatus('code-sent')
+    } catch {
+      setErrorMessage('Network error. Please try again.')
+      setStatus('code-sent')
     }
   }
 
@@ -205,12 +258,15 @@ function SchedulePage() {
             Schedule a Meeting
           </h1>
           <p className="text-[#6B6B6B]">
-            Enter your email to verify your subscription and schedule a meeting.
+            {status === 'code-sent' || status === 'verifying'
+              ? 'Enter the verification code sent to your email.'
+              : 'Enter your email to verify your subscription.'}
           </p>
         </div>
 
-        {status === 'idle' || status === 'verifying' || status === 'error' ? (
-          <form onSubmit={handleVerify} className="space-y-6">
+        {/* Step 1: Email Entry */}
+        {(status === 'idle' || status === 'sending-code' || (status === 'error' && !code)) ? (
+          <form onSubmit={handleSendCode} className="space-y-6">
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-[#2C2C2C] mb-2">
                 Email Address
@@ -235,7 +291,59 @@ function SchedulePage() {
 
             <button
               type="submit"
-              disabled={status === 'verifying'}
+              disabled={status === 'sending-code'}
+              className="w-full px-8 py-4 bg-[#A8B89F] text-white text-lg font-semibold rounded-full hover:shadow-xl hover:-translate-y-1 transition-all duration-300 disabled:opacity-50 cursor-pointer"
+            >
+              {status === 'sending-code' ? (
+                <>
+                  <i className="ri-loader-4-line animate-spin mr-2"></i>
+                  Sending Code...
+                </>
+              ) : (
+                <>
+                  <i className="ri-mail-send-line mr-2"></i>
+                  Send Verification Code
+                </>
+              )}
+            </button>
+          </form>
+        ) : (status === 'code-sent' || status === 'verifying') ? (
+          /* Step 2: Code Entry */
+          <form onSubmit={handleVerifyCode} className="space-y-6">
+            <div className="bg-[#E8F4E8] rounded-lg p-4 mb-4">
+              <p className="text-sm text-[#2C2C2C]">
+                <i className="ri-mail-check-line mr-2 text-[#A8B89F]"></i>
+                Code sent to <strong>{email}</strong>
+              </p>
+            </div>
+
+            <div>
+              <label htmlFor="code" className="block text-sm font-medium text-[#2C2C2C] mb-2">
+                Verification Code
+              </label>
+              <input
+                type="text"
+                id="code"
+                required
+                value={code}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-[#A8B89F] focus:outline-none transition-colors duration-200 text-center text-2xl tracking-widest font-mono"
+                placeholder="000000"
+                maxLength={6}
+                autoComplete="one-time-code"
+              />
+            </div>
+
+            {errorMessage && (
+              <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                <i className="ri-error-warning-line mr-2"></i>
+                {errorMessage}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={status === 'verifying' || code.length !== 6}
               className="w-full px-8 py-4 bg-[#A8B89F] text-white text-lg font-semibold rounded-full hover:shadow-xl hover:-translate-y-1 transition-all duration-300 disabled:opacity-50 cursor-pointer"
             >
               {status === 'verifying' ? (
@@ -244,9 +352,27 @@ function SchedulePage() {
                   Verifying...
                 </>
               ) : (
-                'Verify & Continue'
+                'Verify Code'
               )}
             </button>
+
+            <div className="flex justify-between items-center text-sm">
+              <button
+                type="button"
+                onClick={() => { setStatus('idle'); setCode(''); setErrorMessage(''); }}
+                className="text-[#6B6B6B] hover:text-[#2C2C2C] transition-colors"
+              >
+                <i className="ri-arrow-left-line mr-1"></i>
+                Change email
+              </button>
+              <button
+                type="button"
+                onClick={handleResendCode}
+                className="text-[#A8B89F] hover:underline"
+              >
+                Resend code
+              </button>
+            </div>
           </form>
         ) : status === 'verified' && customerData ? (
           <div className="text-center">
