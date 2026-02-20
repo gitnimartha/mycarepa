@@ -402,6 +402,14 @@ function Hero() {
               </span>
               <div className="absolute inset-0 bg-gradient-to-r from-[#A8B89F] via-[#8FA085] to-[#A8B89F] bg-[length:200%_100%] animate-shimmer"></div>
             </button>
+            <Link
+              to="/schedule"
+              className="text-[#6B6B6B] hover:text-[#A8B89F] transition-colors text-sm font-medium inline-flex items-center gap-1"
+            >
+              <i className="ri-calendar-check-line"></i>
+              Already a member? Schedule a meeting
+              <i className="ri-arrow-right-s-line"></i>
+            </Link>
           </div>
         </div>
         <div className="lg:col-span-3">
