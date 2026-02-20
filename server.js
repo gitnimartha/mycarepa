@@ -323,7 +323,6 @@ app.post('/api/verify-customer', async (req, res) => {
 
     // Get usage for current billing period
     let usedHours = 0;
-    let meterDebug = null;
     try {
       if (process.env.MYCARE_METER_ID && periodStart) {
         const meterSummary = await stripe.billing.meters.listEventSummaries(
@@ -335,13 +334,9 @@ app.post('/api/verify-customer', async (req, res) => {
           }
         );
         usedHours = meterSummary.data.reduce((sum, event) => sum + parseFloat(event.aggregated_value || 0), 0);
-        meterDebug = { success: true, dataCount: meterSummary.data.length, usedHours };
-      } else {
-        meterDebug = { error: 'MYCARE_METER_ID not set or periodStart missing' };
       }
     } catch (meterError) {
       console.log('Meter lookup skipped:', meterError.message);
-      meterDebug = { error: meterError.message };
     }
 
     const remainingHours = Math.max(0, includedHours - usedHours);
@@ -359,8 +354,7 @@ app.post('/api/verify-customer', async (req, res) => {
       currentPeriodEnd: periodEnd,
       message: canSchedule
         ? `You have ${remainingHours} hours remaining this period.`
-        : 'You have used all your hours this period. Please upgrade your plan to continue.',
-      _debug: { meterDebug, periodStart, periodEnd }
+        : 'You have used all your hours this period. Please upgrade your plan to continue.'
     });
   } catch (error) {
     console.error('Error verifying customer:', error);
