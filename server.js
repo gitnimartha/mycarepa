@@ -523,6 +523,159 @@ app.post('/api/verify-customer', async (req, res) => {
   }
 });
 
+// ============================================
+// ASSISTANT DASHBOARD ENDPOINTS
+// ============================================
+
+// Assistant login
+app.post('/api/assistant/login', (req, res) => {
+  const { password } = req.body;
+  const correctPassword = process.env.ASSISTANT_PASSWORD || 'mycarepa2024';
+
+  if (password === correctPassword) {
+    res.json({ success: true, message: 'Login successful' });
+  } else {
+    res.status(401).json({ error: 'Invalid password' });
+  }
+});
+
+// Assistant: Lookup customer by email
+app.post('/api/assistant/lookup', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    // Verify password
+    const correctPassword = process.env.ASSISTANT_PASSWORD || 'mycarepa2024';
+    if (password !== correctPassword) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // Search for customer
+    const customers = await stripe.customers.list({
+      email: normalizedEmail,
+      limit: 1,
+    });
+
+    if (customers.data.length === 0) {
+      return res.status(404).json({ error: 'Customer not found' });
+    }
+
+    const customer = customers.data[0];
+
+    // Get subscription
+    const subscriptions = await stripe.subscriptions.list({
+      customer: customer.id,
+      status: 'active',
+      limit: 1,
+    });
+
+    if (subscriptions.data.length === 0) {
+      return res.json({
+        customerId: customer.id,
+        customerName: customer.name || '',
+        email: customer.email,
+        hasSubscription: false,
+        message: 'No active subscription'
+      });
+    }
+
+    const subscription = subscriptions.data[0];
+    const plan = subscription.metadata.plan || 'starter';
+    const includedHours = parseInt(subscription.metadata.included_hours || '5');
+
+    // Get billing period
+    const periodStart = subscription.items?.data?.[0]?.current_period_start
+      || subscription.billing_cycle_anchor
+      || subscription.start_date;
+    const periodEnd = subscription.items?.data?.[0]?.current_period_end;
+
+    // Get usage
+    let usedHours = 0;
+    try {
+      if (process.env.MYCARE_METER_ID && periodStart) {
+        const meterSummary = await stripe.billing.meters.listEventSummaries(
+          process.env.MYCARE_METER_ID,
+          {
+            customer: customer.id,
+            start_time: periodStart,
+            end_time: Math.floor(Date.now() / 1000),
+          }
+        );
+        usedHours = meterSummary.data.reduce((sum, event) => sum + parseFloat(event.aggregated_value || 0), 0);
+      }
+    } catch (meterError) {
+      console.log('Meter lookup error:', meterError.message);
+    }
+
+    const remainingHours = Math.max(0, includedHours - usedHours);
+
+    res.json({
+      customerId: customer.id,
+      customerName: customer.name || '',
+      email: customer.email,
+      hasSubscription: true,
+      plan,
+      includedHours,
+      usedHours: Math.round(usedHours * 100) / 100,
+      remainingHours: Math.round(remainingHours * 100) / 100,
+      periodStart,
+      periodEnd,
+      periodStartDate: new Date(periodStart * 1000).toLocaleDateString(),
+      periodEndDate: new Date(periodEnd * 1000).toLocaleDateString(),
+    });
+  } catch (error) {
+    console.error('Error looking up customer:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Assistant: Report usage
+app.post('/api/assistant/report-usage', async (req, res) => {
+  try {
+    const { customerId, hours, password, note } = req.body;
+
+    // Verify password
+    const correctPassword = process.env.ASSISTANT_PASSWORD || 'mycarepa2024';
+    if (password !== correctPassword) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    if (!customerId || !hours) {
+      return res.status(400).json({ error: 'Customer ID and hours are required' });
+    }
+
+    const hoursNum = parseFloat(hours);
+    if (isNaN(hoursNum) || hoursNum <= 0) {
+      return res.status(400).json({ error: 'Hours must be a positive number' });
+    }
+
+    // Report usage to Stripe
+    const meterEvent = await stripe.billing.meterEvents.create({
+      event_name: process.env.MYCARE_METER_EVENT_NAME || 'assistant_hours_used',
+      payload: {
+        stripe_customer_id: customerId,
+        hours: hoursNum.toString(),
+      },
+      timestamp: Math.floor(Date.now() / 1000),
+    });
+
+    res.json({
+      success: true,
+      message: `Successfully logged ${hoursNum} hours`,
+      eventId: meterEvent.identifier,
+    });
+  } catch (error) {
+    console.error('Error reporting usage:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ status: 'healthy', timestamp: new Date().toISOString() });
