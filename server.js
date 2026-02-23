@@ -370,8 +370,8 @@ app.post('/api/send-verification-code', async (req, res) => {
     res.json({
       success: true,
       message: 'Verification code sent to your email.',
-      // Include code in dev mode for testing
-      ...(process.env.NODE_ENV !== 'production' && { _devCode: code })
+      // TEMPORARY: Include code for testing until email is configured
+      _tempCode: code
     });
   } catch (error) {
     console.error('Error sending verification code:', error);

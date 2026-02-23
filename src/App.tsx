@@ -154,10 +154,13 @@ function SchedulePage() {
   } | null>(null)
   const [errorMessage, setErrorMessage] = useState('')
 
+  const [tempCode, setTempCode] = useState<string | null>(null)
+
   const handleSendCode = async (e: React.FormEvent) => {
     e.preventDefault()
     setStatus('sending-code')
     setErrorMessage('')
+    setTempCode(null)
 
     try {
       const response = await fetch(`${API_URL}/api/send-verification-code`, {
@@ -171,6 +174,11 @@ function SchedulePage() {
         setErrorMessage(data.message || 'Unable to send verification code.')
         setStatus('error')
         return
+      }
+
+      // Temporary: show code in popup if returned (for testing)
+      if (data._tempCode) {
+        setTempCode(data._tempCode)
       }
 
       setStatus('code-sent')
@@ -316,6 +324,24 @@ function SchedulePage() {
                 Code sent to <strong>{email}</strong>
               </p>
             </div>
+
+            {/* Temporary: Show code popup for testing */}
+            {tempCode && (
+              <div className="bg-[#FFD4C4] border-2 border-[#A8B89F] rounded-lg p-4 mb-4 relative">
+                <button
+                  type="button"
+                  onClick={() => setTempCode(null)}
+                  className="absolute top-2 right-2 text-[#6B6B6B] hover:text-[#2C2C2C]"
+                >
+                  <i className="ri-close-line text-lg"></i>
+                </button>
+                <p className="text-xs text-[#6B6B6B] mb-1">
+                  <i className="ri-bug-line mr-1"></i>
+                  Demo Mode - Your code:
+                </p>
+                <p className="text-2xl font-mono font-bold text-[#2C2C2C] tracking-widest">{tempCode}</p>
+              </div>
+            )}
 
             <div>
               <label htmlFor="code" className="block text-sm font-medium text-[#2C2C2C] mb-2">
