@@ -1154,6 +1154,7 @@ function AssistantPage() {
                   <div>
                     <h3 className="font-semibold text-[#2C2C2C]">{customer.customerName || 'No Name'}</h3>
                     <p className="text-sm text-[#6B6B6B]">{customer.email}</p>
+                    <p className="text-xs text-[#999] font-mono">{customer.customerId}</p>
                   </div>
                 </div>
 
