@@ -48,15 +48,15 @@ const MYCARE_PRICES = {
     base: process.env.MYCARE_PRICE_STARTER_BASE,
     hourly: process.env.MYCARE_PRICE_STARTER_HOURLY,
     name: 'My Care Starter',
-    includedHours: 5,
-    monthlyFee: 149,
+    includedHours: 4,
+    monthlyFee: 99,
   },
   plus: {
     base: process.env.MYCARE_PRICE_PLUS_BASE,
     hourly: process.env.MYCARE_PRICE_PLUS_HOURLY,
     name: 'My Care Plus',
     includedHours: 10,
-    monthlyFee: 279,
+    monthlyFee: 249,
   },
   pro: {
     base: process.env.MYCARE_PRICE_PRO_BASE,
