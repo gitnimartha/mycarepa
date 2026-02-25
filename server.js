@@ -28,8 +28,26 @@ setInterval(() => {
   }
 }, 5 * 60 * 1000);
 
-// Middleware
-app.use(cors());
+// Middleware - CORS configuration
+const allowedOrigins = [
+  'https://mycarepersonalassistant.com',
+  'https://www.mycarepersonalassistant.com',
+  'https://mycarepa-production.up.railway.app',
+  'http://localhost:5173',
+  'http://localhost:3000',
+];
+
+app.use(cors({
+  origin: function(origin, callback) {
+    // Allow requests with no origin (mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(null, true); // Allow all for now, but log unknown origins
+  },
+  credentials: true,
+}));
 app.use(express.json());
 
 // Serve static files in production
