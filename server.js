@@ -28,8 +28,27 @@ setInterval(() => {
   }
 }, 5 * 60 * 1000);
 
-// Middleware
-app.use(cors());
+// Middleware - CORS configuration for Readdy frontend
+const allowedOrigins = [
+  'https://mycarepersonalassistant.com',
+  'https://www.mycarepersonalassistant.com',
+  'https://mycarepa-production.up.railway.app',
+  'http://localhost:5173',
+  'http://localhost:3000',
+];
+
+app.use(cors({
+  origin: function(origin, callback) {
+    // Allow requests with no origin (mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    // Allow all origins for now but could restrict later
+    return callback(null, true);
+  },
+  credentials: true,
+}));
 app.use(express.json());
 
 // Serve static files in production
