@@ -1,6 +1,32 @@
+import { useState } from 'react';
+import { API_URL } from '../../../config/api';
+
 export default function Pricing() {
+  const [loading, setLoading] = useState<string | null>(null);
+
+  const handleCheckout = async (planId: string) => {
+    setLoading(planId);
+    try {
+      const response = await fetch(`${API_URL}/api/create-checkout-session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan: planId, billingCycle: 'monthly' }),
+      });
+      const data = await response.json();
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch (error) {
+      console.error('Checkout error:', error);
+      alert('Unable to start checkout. Please try again.');
+    } finally {
+      setLoading(null);
+    }
+  };
+
   const plans = [
     {
+      id: 'starter',
       name: 'MyCarePA Starter',
       bestFor: 'Light, occasional support',
       hours: '4',
@@ -14,6 +40,7 @@ export default function Pricing() {
       popular: false
     },
     {
+      id: 'plus',
       name: 'MyCarePA Plus',
       bestFor: 'Regular guidance & follow-ups',
       hours: '10',
@@ -28,6 +55,7 @@ export default function Pricing() {
       popular: true
     },
     {
+      id: 'pro',
       name: 'MyCarePA Pro',
       bestFor: 'High-touch, ongoing support',
       hours: '20',
@@ -43,13 +71,6 @@ export default function Pricing() {
       popular: false
     }
   ];
-
-  const scrollToContact = () => {
-    const element = document.getElementById('contact');
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
-    }
-  };
 
   return (
     <section id="pricing" className="py-20 bg-white">
@@ -68,9 +89,9 @@ export default function Pricing() {
             Ongoing Support Plans
           </h3>
           <div className="grid md:grid-cols-3 gap-8">
-            {plans.map((plan, index) => (
+            {plans.map((plan) => (
               <div
-                key={index}
+                key={plan.id}
                 className={`${
                   plan.popular ? 'bg-[#FFD4C4]' : 'bg-white'
                 } border-2 ${
@@ -103,14 +124,17 @@ export default function Pricing() {
                   ))}
                 </ul>
                 <button
-                  onClick={scrollToContact}
+                  onClick={() => handleCheckout(plan.id)}
+                  disabled={loading === plan.id}
                   className={`${
                     plan.popular ? 'group relative overflow-hidden' : ''
-                  } w-full px-6 py-3 bg-[#A8B89F] text-white font-semibold rounded-full hover:shadow-lg hover:-translate-y-1 transition-all duration-300 whitespace-nowrap cursor-pointer ${
+                  } w-full px-6 py-3 bg-[#A8B89F] text-white font-semibold rounded-full hover:shadow-lg hover:-translate-y-1 transition-all duration-300 whitespace-nowrap cursor-pointer disabled:opacity-50 ${
                     plan.popular ? 'hover:scale-105' : ''
                   }`}
                 >
-                  {plan.popular ? (
+                  {loading === plan.id ? (
+                    <span className="relative z-10">Processing...</span>
+                  ) : plan.popular ? (
                     <>
                       <span className="relative z-10">Buy Now - {plan.price}</span>
                       <div className="absolute inset-0 bg-gradient-to-r from-[#A8B89F] via-[#8FA085] to-[#A8B89F] bg-[length:200%_100%] animate-shimmer"></div>
