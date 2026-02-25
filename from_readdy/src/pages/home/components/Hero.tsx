@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom';
+
 export default function Hero() {
   const scrollToContact = () => {
     const element = document.getElementById('contact');
@@ -37,11 +39,19 @@ export default function Hero() {
               className="group relative w-full sm:w-auto px-10 py-4 bg-[#A8B89F] text-white text-lg font-semibold rounded-full overflow-hidden transition-all duration-300 whitespace-nowrap cursor-pointer hover:shadow-xl hover:-translate-y-1 hover:scale-105"
             >
               <span className="relative z-10 inline-flex items-center gap-2">
-                Buy Now!
+                Get Started
                 <i className="ri-arrow-right-line text-xl transition-transform duration-300 group-hover:translate-x-1"></i>
               </span>
               <div className="absolute inset-0 bg-gradient-to-r from-[#A8B89F] via-[#8FA085] to-[#A8B89F] bg-[length:200%_100%] animate-shimmer"></div>
             </button>
+            <Link
+              to="/schedule"
+              className="text-[#6B6B6B] hover:text-[#A8B89F] transition-colors text-sm font-medium inline-flex items-center gap-1"
+            >
+              <i className="ri-calendar-check-line"></i>
+              Already a member? Schedule a meeting
+              <i className="ri-arrow-right-s-line"></i>
+            </Link>
           </div>
         </div>
         <div className="lg:col-span-3">
