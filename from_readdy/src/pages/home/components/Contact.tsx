@@ -1,4 +1,13 @@
 import { useState } from 'react';
+import { CALENDLY_URL_FREE_INTRO } from '../../../config/api';
+
+declare global {
+  interface Window {
+    Calendly?: {
+      initPopupWidget: (options: { url: string }) => void;
+    };
+  }
+}
 
 export default function Contact() {
   const [formData, setFormData] = useState({
@@ -32,6 +41,12 @@ export default function Contact() {
       if (response.ok) {
         setStatus('success');
         setFormData({ name: '', email: '', phone: '', message: '' });
+
+        // Open Calendly popup for free intro call
+        if (window.Calendly) {
+          window.Calendly.initPopupWidget({ url: CALENDLY_URL_FREE_INTRO });
+        }
+
         setTimeout(() => setStatus('idle'), 5000);
       } else {
         setStatus('error');

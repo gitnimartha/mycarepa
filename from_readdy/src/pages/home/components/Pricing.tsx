@@ -3,9 +3,17 @@ import { API_URL } from '../../../config/api';
 
 export default function Pricing() {
   const [loading, setLoading] = useState<string | null>(null);
+  const [loadingMessage, setLoadingMessage] = useState('Connecting...');
 
   const handleCheckout = async (planId: string) => {
     setLoading(planId);
+    setLoadingMessage('Connecting...');
+
+    // Update message after 2 seconds if still loading
+    const messageTimer = setTimeout(() => {
+      setLoadingMessage('Setting up checkout...');
+    }, 2000);
+
     try {
       const response = await fetch(`${API_URL}/api/create-checkout-session`, {
         method: 'POST',
@@ -14,13 +22,15 @@ export default function Pricing() {
       });
       const data = await response.json();
       if (data.url) {
+        setLoadingMessage('Redirecting to payment...');
         window.location.href = data.url;
       }
     } catch (error) {
       console.error('Checkout error:', error);
       alert('Unable to start checkout. Please try again.');
-    } finally {
       setLoading(null);
+    } finally {
+      clearTimeout(messageTimer);
     }
   };
 
@@ -74,6 +84,17 @@ export default function Pricing() {
 
   return (
     <section id="pricing" className="py-20 bg-white">
+      {/* Full-screen loading overlay */}
+      {loading && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-8 flex flex-col items-center gap-4 shadow-2xl">
+            <div className="w-12 h-12 border-4 border-[#A8B89F] border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-lg font-medium text-[#2C2C2C]">{loadingMessage}</p>
+            <p className="text-sm text-[#6B6B6B]">Please wait...</p>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-7xl mx-auto px-6">
         <div className="text-center mb-12">
           <span className="inline-block px-6 py-2 bg-[#A8B89F] text-white text-sm font-medium uppercase tracking-wider rounded-full">
@@ -125,7 +146,7 @@ export default function Pricing() {
                 </ul>
                 <button
                   onClick={() => handleCheckout(plan.id)}
-                  disabled={loading === plan.id}
+                  disabled={loading !== null}
                   className={`${
                     plan.popular ? 'group relative overflow-hidden' : ''
                   } w-full px-6 py-3 bg-[#A8B89F] text-white font-semibold rounded-full hover:shadow-lg hover:-translate-y-1 transition-all duration-300 whitespace-nowrap cursor-pointer disabled:opacity-50 ${
@@ -133,7 +154,10 @@ export default function Pricing() {
                   }`}
                 >
                   {loading === plan.id ? (
-                    <span className="relative z-10">Processing...</span>
+                    <span className="relative z-10 inline-flex items-center gap-2">
+                      <i className="ri-loader-4-line animate-spin"></i>
+                      {loadingMessage}
+                    </span>
                   ) : plan.popular ? (
                     <>
                       <span className="relative z-10">Buy Now - {plan.price}</span>

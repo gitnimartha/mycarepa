@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useSEO } from '../../utils/seo';
+import { API_URL } from '../../config/api';
 import Hero from './components/Hero';
 import StickyBanner from './components/StickyBanner';
 import WhatIsMyCare from './components/WhatIsMyCare';
@@ -52,6 +53,11 @@ export default function HomePage() {
       },
     },
   });
+
+  // Warm up Railway backend on page load (prevents cold start delay on button click)
+  useEffect(() => {
+    fetch(`${API_URL}/api/health`, { method: 'GET' }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     const handleScroll = () => {
