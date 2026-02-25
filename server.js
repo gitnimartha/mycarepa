@@ -28,7 +28,7 @@ setInterval(() => {
   }
 }, 5 * 60 * 1000);
 
-// Middleware - CORS configuration
+// Middleware - CORS configuration for Readdy frontend
 const allowedOrigins = [
   'https://mycarepersonalassistant.com',
   'https://www.mycarepersonalassistant.com',
@@ -44,7 +44,8 @@ app.use(cors({
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
-    return callback(null, true); // Allow all for now, but log unknown origins
+    // Allow all origins for now but could restrict later
+    return callback(null, true);
   },
   credentials: true,
 }));

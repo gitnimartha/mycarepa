@@ -4,11 +4,26 @@ import Home from "../pages/home/page";
 import PrivacyPolicy from "../pages/privacy-policy/page";
 import TermsOfService from "../pages/terms-of-service/page";
 import AssistantGuidelines from "../pages/assistant-guidelines/page";
+import Success from "../pages/success/page";
+import Schedule from "../pages/schedule/page";
+import AssistantDashboard from "../pages/assistant-dashboard/page";
 
 const routes: RouteObject[] = [
   {
     path: "/",
     element: <Home />,
+  },
+  {
+    path: "/success",
+    element: <Success />,
+  },
+  {
+    path: "/schedule",
+    element: <Schedule />,
+  },
+  {
+    path: "/assistant",
+    element: <AssistantDashboard />,
   },
   {
     path: "/privacy-policy",
