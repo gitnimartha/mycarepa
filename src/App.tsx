@@ -901,9 +901,9 @@ function Footer() {
           <div>
             <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-400 mb-4">Support</h3>
             <ul className="space-y-3">
-              <li><a href="#" className="text-white hover:text-[#A8B89F] transition-colors">Privacy Policy</a></li>
-              <li><a href="#" className="text-white hover:text-[#A8B89F] transition-colors">Terms of Service</a></li>
-              <li><a href="#" className="text-white hover:text-[#A8B89F] transition-colors">Assistant Guidelines</a></li>
+              <li><Link to="/privacy-policy" className="text-white hover:text-[#A8B89F] transition-colors">Privacy Policy</Link></li>
+              <li><Link to="/terms-of-service" className="text-white hover:text-[#A8B89F] transition-colors">Terms of Service</Link></li>
+              <li><Link to="/assistant-guidelines" className="text-white hover:text-[#A8B89F] transition-colors">Assistant Guidelines</Link></li>
             </ul>
           </div>
           <div>
@@ -1223,6 +1223,302 @@ function AssistantPage() {
   )
 }
 
+// ============================================
+// PRIVACY POLICY PAGE
+// ============================================
+function PrivacyPolicyPage() {
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [])
+
+  return (
+    <div className="min-h-screen bg-white">
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
+          <Link to="/" className="inline-flex items-center gap-2 text-2xl font-serif font-bold text-[#2C2C2C] hover:text-[#A8B89F] transition-colors duration-200">
+            <i className="ri-heart-pulse-line text-[#A8B89F]"></i>
+            MY CARE PERSONAL ASSISTANT™
+          </Link>
+        </div>
+      </header>
+
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-12 sm:py-20">
+        <h1 className="font-serif text-4xl sm:text-5xl font-bold text-[#2C2C2C] mb-6">Privacy Policy</h1>
+        <p className="text-base text-[#6B6B6B] mb-8">Last updated: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+
+        <div className="space-y-8 text-[#2C2C2C]">
+          <section>
+            <h2 className="font-serif text-2xl font-bold mb-4">Introduction</h2>
+            <p className="text-base leading-relaxed text-[#6B6B6B]">At My Care Personal Assistant™, we take your privacy seriously. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our personal assistant services.</p>
+          </section>
+
+          <section>
+            <h2 className="font-serif text-2xl font-bold mb-4">Information We Collect</h2>
+            <ul className="list-disc list-inside space-y-2 text-base text-[#6B6B6B] ml-4">
+              <li><strong>Personal Data:</strong> Name, email address, phone number, and other contact information.</li>
+              <li><strong>Service Information:</strong> Details about the tasks and services you request.</li>
+              <li><strong>Payment Information:</strong> Billing address and payment method details processed securely.</li>
+              <li><strong>Communication Data:</strong> Records of your communications with us and your assistant.</li>
+            </ul>
+          </section>
+
+          <section>
+            <h2 className="font-serif text-2xl font-bold mb-4">How We Use Your Information</h2>
+            <ul className="list-disc list-inside space-y-2 text-base text-[#6B6B6B] ml-4">
+              <li>Provide, operate, and maintain our personal assistant services</li>
+              <li>Match you with qualified personal assistants based on your needs</li>
+              <li>Process your transactions and manage your subscription</li>
+              <li>Communicate with you about services and updates</li>
+              <li>Improve and personalize your experience</li>
+            </ul>
+          </section>
+
+          <section>
+            <h2 className="font-serif text-2xl font-bold mb-4">Data Security</h2>
+            <p className="text-base leading-relaxed text-[#6B6B6B]">We implement appropriate technical and organizational security measures to protect your personal information against unauthorized access, alteration, disclosure, or destruction.</p>
+          </section>
+
+          <section>
+            <h2 className="font-serif text-2xl font-bold mb-4">Your Privacy Rights</h2>
+            <ul className="list-disc list-inside space-y-2 text-base text-[#6B6B6B] ml-4">
+              <li><strong>Access:</strong> Request access to the personal information we hold about you</li>
+              <li><strong>Correction:</strong> Request correction of inaccurate or incomplete information</li>
+              <li><strong>Deletion:</strong> Request deletion of your personal information</li>
+              <li><strong>Withdraw Consent:</strong> Withdraw your consent at any time</li>
+            </ul>
+          </section>
+
+          <section>
+            <h2 className="font-serif text-2xl font-bold mb-4">Contact Us</h2>
+            <div className="bg-[#FFF8F0] p-6 rounded-lg space-y-2">
+              <p className="text-base text-[#2C2C2C]"><strong>Email:</strong> privacy@mycarepa.com</p>
+              <p className="text-base text-[#2C2C2C]"><strong>Phone:</strong> 1-800-MY-CARE-1</p>
+              <p className="text-base text-[#2C2C2C]"><strong>Address:</strong> 255 N. Sierra Street, #2312, Reno NV 89501</p>
+            </div>
+          </section>
+        </div>
+
+        <div className="mt-12 text-center">
+          <Link to="/" className="inline-flex items-center gap-2 px-6 py-3 bg-[#A8B89F] text-white font-semibold rounded-full hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+            <i className="ri-arrow-left-line"></i>
+            Back to Home
+          </Link>
+        </div>
+      </div>
+      <Footer />
+    </div>
+  )
+}
+
+// ============================================
+// TERMS OF SERVICE PAGE
+// ============================================
+function TermsOfServicePage() {
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [])
+
+  return (
+    <div className="min-h-screen bg-white">
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
+          <Link to="/" className="inline-flex items-center gap-2 text-2xl font-serif font-bold text-[#2C2C2C] hover:text-[#A8B89F] transition-colors duration-200">
+            <i className="ri-heart-pulse-line text-[#A8B89F]"></i>
+            MY CARE PERSONAL ASSISTANT™
+          </Link>
+        </div>
+      </header>
+
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-12 sm:py-20">
+        <h1 className="font-serif text-4xl sm:text-5xl font-bold text-[#2C2C2C] mb-6">Terms of Service</h1>
+        <p className="text-base text-[#6B6B6B] mb-8">Last updated: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+
+        <div className="space-y-8 text-[#2C2C2C]">
+          <section>
+            <h2 className="font-serif text-2xl font-bold mb-4">1. Acceptance of Terms</h2>
+            <p className="text-base leading-relaxed text-[#6B6B6B]">By accessing and using MyCarePA's services, you accept and agree to be bound by the terms and provision of this agreement.</p>
+          </section>
+
+          <section>
+            <h2 className="font-serif text-2xl font-bold mb-4">2. Service Description</h2>
+            <p className="text-base leading-relaxed text-[#6B6B6B] mb-4">MyCarePA provides personal assistant services to help with daily tasks, errands, appointments, and various life management activities.</p>
+            <ul className="list-disc list-inside space-y-2 text-base text-[#6B6B6B] ml-4">
+              <li>Appointment scheduling and management</li>
+              <li>Errand running and shopping assistance</li>
+              <li>Bill payment and financial organization</li>
+              <li>Travel planning and coordination</li>
+              <li>Home organization and decluttering</li>
+            </ul>
+          </section>
+
+          <section>
+            <h2 className="font-serif text-2xl font-bold mb-4">3. User Responsibilities</h2>
+            <ul className="list-disc list-inside space-y-2 text-base text-[#6B6B6B] ml-4">
+              <li>Provide accurate and complete information when requesting services</li>
+              <li>Treat our personal assistants with respect and professionalism</li>
+              <li>Pay for services in accordance with the agreed-upon pricing plan</li>
+              <li>Provide reasonable notice for cancellations or changes</li>
+            </ul>
+          </section>
+
+          <section>
+            <h2 className="font-serif text-2xl font-bold mb-4">4. Payment Terms</h2>
+            <p className="text-base leading-relaxed text-[#6B6B6B]">Payment for services is due according to your selected plan. All fees are non-refundable except as required by law. We reserve the right to change pricing with 30 days' notice.</p>
+          </section>
+
+          <section>
+            <h2 className="font-serif text-2xl font-bold mb-4">5. Cancellation Policy</h2>
+            <p className="text-base leading-relaxed text-[#6B6B6B]">Monthly subscribers may cancel at any time, with cancellation taking effect at the end of the current billing period.</p>
+          </section>
+
+          <section>
+            <h2 className="font-serif text-2xl font-bold mb-4">6. Confidentiality</h2>
+            <p className="text-base leading-relaxed text-[#6B6B6B]">All staff members are required to maintain strict confidentiality regarding client information and activities.</p>
+          </section>
+
+          <div className="mt-8 p-6 bg-[#FFF8F0] rounded-lg border-l-4 border-[#A8B89F]">
+            <p className="text-[#2C2C2C] font-medium">By using MyCarePA's services, you acknowledge that you have read, understood, and agree to be bound by these Terms of Service.</p>
+          </div>
+        </div>
+
+        <div className="mt-12 text-center">
+          <Link to="/" className="inline-flex items-center gap-2 px-6 py-3 bg-[#A8B89F] text-white font-semibold rounded-full hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+            <i className="ri-arrow-left-line"></i>
+            Back to Home
+          </Link>
+        </div>
+      </div>
+      <Footer />
+    </div>
+  )
+}
+
+// ============================================
+// ASSISTANT GUIDELINES PAGE
+// ============================================
+function AssistantGuidelinesPage() {
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [])
+
+  return (
+    <div className="min-h-screen bg-white">
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
+          <Link to="/" className="inline-flex items-center gap-2 text-2xl font-serif font-bold text-[#2C2C2C] hover:text-[#A8B89F] transition-colors duration-200">
+            <i className="ri-heart-pulse-line text-[#A8B89F]"></i>
+            MY CARE PERSONAL ASSISTANT™
+          </Link>
+        </div>
+      </header>
+
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-12 sm:py-20">
+        <h1 className="font-serif text-4xl sm:text-5xl font-bold text-[#2C2C2C] mb-6">Assistant Guidelines</h1>
+        <p className="text-base text-[#6B6B6B] mb-8">Last updated: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+
+        <div className="space-y-8 text-[#2C2C2C]">
+          <section>
+            <h2 className="font-serif text-2xl font-bold mb-4">Our Commitment to Excellence</h2>
+            <p className="text-base leading-relaxed text-[#6B6B6B]">At My Care Personal Assistant™, we maintain the highest standards of professionalism, confidentiality, and care.</p>
+          </section>
+
+          <section>
+            <h2 className="font-serif text-2xl font-bold mb-4">Professional Standards</h2>
+            <ul className="list-disc list-inside space-y-2 text-base text-[#6B6B6B] ml-4">
+              <li><strong>Confidentiality:</strong> All client information is kept strictly confidential</li>
+              <li><strong>Reliability:</strong> Respond promptly and complete tasks within agreed timeframes</li>
+              <li><strong>Professionalism:</strong> Maintain courteous, respectful communication</li>
+              <li><strong>Competence:</strong> Only accept tasks within skill set and expertise</li>
+              <li><strong>Transparency:</strong> Communicate clearly about capabilities and limitations</li>
+              <li><strong>Accountability:</strong> Take responsibility for work quality</li>
+            </ul>
+          </section>
+
+          <section>
+            <h2 className="font-serif text-2xl font-bold mb-4">Service Boundaries</h2>
+            <ul className="list-disc list-inside space-y-2 text-base text-[#6B6B6B] ml-4">
+              <li>Do not provide medical, legal, or financial advice</li>
+              <li>Do not handle tasks requiring professional licenses</li>
+              <li>Do not engage in activities that violate laws</li>
+              <li>Do not share personal contact information outside the platform</li>
+            </ul>
+          </section>
+
+          <section>
+            <h2 className="font-serif text-2xl font-bold mb-4">Verifying Subscription Status Before Meetings</h2>
+            <p className="text-base leading-relaxed text-[#6B6B6B] mb-4">Before proceeding with any scheduled meeting, assistants must verify the client's subscription status:</p>
+            <ol className="list-decimal list-inside space-y-2 text-base text-[#6B6B6B] ml-4">
+              <li><strong>Check the Dashboard:</strong> Log into the Assistant Dashboard at <code className="bg-gray-100 px-2 py-1 rounded">/assistant</code></li>
+              <li><strong>Look Up Customer:</strong> Search for the customer's email address</li>
+              <li><strong>Verify Hours:</strong> Check if the customer has remaining hours in their plan</li>
+              <li><strong>Proceed or Decline:</strong>
+                <ul className="list-disc list-inside ml-6 mt-2 space-y-1">
+                  <li><strong>Has hours remaining:</strong> Proceed with the call and log hours used after</li>
+                  <li><strong>No hours remaining:</strong> Do not proceed. Send a polite email explaining they need to upgrade their plan</li>
+                </ul>
+              </li>
+            </ol>
+            <div className="bg-[#FFF8F0] p-4 rounded-lg mt-4">
+              <p className="text-base text-[#2C2C2C]">
+                <i className="ri-information-line text-[#A8B89F] mr-2"></i>
+                <strong>Note:</strong> The scheduling link may be accessible to anyone, but the actual service is controlled by the assistant. Always verify subscription status before providing service.
+              </p>
+            </div>
+          </section>
+
+          <section>
+            <h2 className="font-serif text-2xl font-bold mb-4">Communication Guidelines</h2>
+            <ul className="list-disc list-inside space-y-2 text-base text-[#6B6B6B] ml-4">
+              <li><strong>Response Time:</strong> Respond within 2 hours during business hours</li>
+              <li><strong>Availability:</strong> Monday-Friday, 9 AM - 6 PM local time</li>
+              <li><strong>Feedback:</strong> Regular check-ins ensure tasks meet expectations</li>
+            </ul>
+          </section>
+
+          <section>
+            <h2 className="font-serif text-2xl font-bold mb-4">Contact Us</h2>
+            <div className="bg-[#FFF8F0] p-6 rounded-lg space-y-2">
+              <p className="text-base text-[#2C2C2C]"><strong>Email:</strong> support@mycarepa.com</p>
+              <p className="text-base text-[#2C2C2C]"><strong>Phone:</strong> 1-800-MY-CARE-1</p>
+              <p className="text-base text-[#2C2C2C]"><strong>Address:</strong> 255 N. Sierra Street, #2312, Reno NV 89501</p>
+            </div>
+          </section>
+        </div>
+
+        <div className="mt-12 text-center">
+          <Link to="/" className="inline-flex items-center gap-2 px-6 py-3 bg-[#A8B89F] text-white font-semibold rounded-full hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+            <i className="ri-arrow-left-line"></i>
+            Back to Home
+          </Link>
+        </div>
+      </div>
+      <Footer />
+    </div>
+  )
+}
+
+// ============================================
+// NOT FOUND PAGE
+// ============================================
+function NotFoundPage() {
+  return (
+    <div className="relative flex flex-col items-center justify-center h-screen text-center px-4 bg-white">
+      <h1 className="absolute bottom-0 text-9xl md:text-[12rem] font-black text-gray-50 select-none pointer-events-none z-0">404</h1>
+      <div className="relative z-10">
+        <div className="flex items-center justify-center gap-2 mb-6">
+          <i className="ri-heart-fill text-[#A8B89F] text-4xl"></i>
+        </div>
+        <h1 className="text-xl md:text-2xl font-semibold text-[#2C2C2C]">Page Not Found</h1>
+        <p className="mt-4 text-lg text-[#6B6B6B]">The page you're looking for doesn't exist.</p>
+        <Link to="/" className="mt-8 inline-flex items-center gap-2 px-6 py-3 bg-[#A8B89F] text-white font-semibold rounded-full hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+          <i className="ri-home-line"></i>
+          Back to Home
+        </Link>
+      </div>
+    </div>
+  )
+}
+
 // Home Page
 function HomePage() {
   const [showBanner, setShowBanner] = useState(false)
@@ -1257,6 +1553,10 @@ function App() {
         <Route path="/success" element={<SuccessPage />} />
         <Route path="/schedule" element={<SchedulePage />} />
         <Route path="/assistant" element={<AssistantPage />} />
+        <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+        <Route path="/terms-of-service" element={<TermsOfServicePage />} />
+        <Route path="/assistant-guidelines" element={<AssistantGuidelinesPage />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </BrowserRouter>
   )
