@@ -263,26 +263,26 @@ export default function AssistantDashboardPage() {
                           min="0.25"
                           value={hours}
                           onChange={(e) => setHours(e.target.value)}
-                          className="flex-1 px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-[#A8B89F] focus:outline-none"
-                          placeholder="e.g. 1.5"
+                          className="w-20 px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-[#A8B89F] focus:outline-none text-center"
+                          placeholder="Hours"
                           required
                         />
-                        <button
-                          type="submit"
-                          disabled={status === 'loading' || !hours || !inputtedBy}
-                          className="px-6 py-2 bg-[#A8B89F] text-white font-semibold rounded-lg hover:shadow-lg transition-all disabled:opacity-50"
-                        >
-                          {status === 'loading' ? '...' : 'Add'}
-                        </button>
+                        <input
+                          type="text"
+                          value={inputtedBy}
+                          onChange={(e) => setInputtedBy(e.target.value)}
+                          className="flex-1 px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-[#A8B89F] focus:outline-none"
+                          placeholder="Your name"
+                          required
+                        />
                       </div>
-                      <input
-                        type="text"
-                        value={inputtedBy}
-                        onChange={(e) => setInputtedBy(e.target.value)}
-                        className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-[#A8B89F] focus:outline-none"
-                        placeholder="Logged by (your name)"
-                        required
-                      />
+                      <button
+                        type="submit"
+                        disabled={status === 'loading' || !hours || !inputtedBy}
+                        className="w-full px-6 py-2 bg-[#A8B89F] text-white font-semibold rounded-lg hover:shadow-lg transition-all disabled:opacity-50"
+                      >
+                        {status === 'loading' ? 'Adding...' : 'Add Hours'}
+                      </button>
                     </form>
                   </>
                 ) : (
