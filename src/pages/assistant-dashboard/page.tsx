@@ -7,6 +7,7 @@ export default function AssistantDashboardPage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [email, setEmail] = useState('');
   const [hours, setHours] = useState('');
+  const [inputtedBy, setInputtedBy] = useState('');
   const [customer, setCustomer] = useState<{
     customerId: string;
     customerName: string;
@@ -107,6 +108,7 @@ export default function AssistantDashboardPage() {
           customerId: customer.customerId,
           hours: parseFloat(hours),
           password,
+          inputtedBy,
         }),
       });
       const data = await response.json();
@@ -250,8 +252,8 @@ export default function AssistantDashboardPage() {
                     </div>
 
                     {/* Add Usage Form */}
-                    <form onSubmit={handleReportUsage} className="pt-4 border-t border-gray-200">
-                      <label className="block text-sm font-medium text-[#2C2C2C] mb-2">
+                    <form onSubmit={handleReportUsage} className="pt-4 border-t border-gray-200 space-y-3">
+                      <label className="block text-sm font-medium text-[#2C2C2C]">
                         Log Hours Used
                       </label>
                       <div className="flex gap-2">
@@ -267,12 +269,20 @@ export default function AssistantDashboardPage() {
                         />
                         <button
                           type="submit"
-                          disabled={status === 'loading' || !hours}
+                          disabled={status === 'loading' || !hours || !inputtedBy}
                           className="px-6 py-2 bg-[#A8B89F] text-white font-semibold rounded-lg hover:shadow-lg transition-all disabled:opacity-50"
                         >
                           {status === 'loading' ? '...' : 'Add'}
                         </button>
                       </div>
+                      <input
+                        type="text"
+                        value={inputtedBy}
+                        onChange={(e) => setInputtedBy(e.target.value)}
+                        className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-[#A8B89F] focus:outline-none"
+                        placeholder="Logged by (your name)"
+                        required
+                      />
                     </form>
                   </>
                 ) : (

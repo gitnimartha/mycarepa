@@ -657,7 +657,7 @@ app.post('/api/assistant/lookup', async (req, res) => {
 // Assistant: Report usage
 app.post('/api/assistant/report-usage', async (req, res) => {
   try {
-    const { customerId, hours, password, note } = req.body;
+    const { customerId, hours, password, inputtedBy } = req.body;
 
     // Verify password
     const correctPassword = process.env.ASSISTANT_PASSWORD || 'mycarepa2024';
@@ -684,11 +684,34 @@ app.post('/api/assistant/report-usage', async (req, res) => {
       timestamp: Math.floor(Date.now() / 1000),
     });
 
+    // Store usage log in customer metadata
+    const customer = await stripe.customers.retrieve(customerId);
+    const existingLog = customer.metadata.usage_log ? JSON.parse(customer.metadata.usage_log) : [];
+
+    // Add new entry (keep last 50 entries to avoid metadata size limits)
+    const newEntry = {
+      date: new Date().toISOString(),
+      hours: hoursNum,
+      inputtedBy: inputtedBy || 'Unknown',
+      eventId: meterEvent.identifier,
+    };
+    existingLog.push(newEntry);
+    const trimmedLog = existingLog.slice(-50);
+
+    // Update customer metadata
+    await stripe.customers.update(customerId, {
+      metadata: {
+        ...customer.metadata,
+        usage_log: JSON.stringify(trimmedLog),
+      },
+    });
+
     res.json({
       success: true,
       message: `Successfully logged ${hoursNum} hours`,
       eventId: meterEvent.identifier,
-      reportedHours: hoursNum, // Return for optimistic UI update
+      reportedHours: hoursNum,
+      inputtedBy: inputtedBy || 'Unknown',
     });
   } catch (error) {
     console.error('Error reporting usage:', error);
