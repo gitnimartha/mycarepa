@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { BrowserRouter, Routes, Route, Link, useSearchParams } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Link, useSearchParams, useLocation } from 'react-router-dom'
 import './index.css'
 
 // Calendly type declaration
@@ -1530,12 +1530,26 @@ function NotFoundPage() {
 // Home Page
 function HomePage() {
   const [showBanner, setShowBanner] = useState(false)
+  const location = useLocation()
 
   useEffect(() => {
     const handleScroll = () => setShowBanner(window.scrollY > 100)
     window.addEventListener('scroll', handleScroll)
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
+
+  // Handle hash navigation (e.g., /#pricing)
+  useEffect(() => {
+    if (location.hash) {
+      const id = location.hash.replace('#', '')
+      const element = document.getElementById(id)
+      if (element) {
+        setTimeout(() => {
+          element.scrollIntoView({ behavior: 'smooth' })
+        }, 100)
+      }
+    }
+  }, [location.hash])
 
   return (
     <div className="min-h-screen bg-white">
