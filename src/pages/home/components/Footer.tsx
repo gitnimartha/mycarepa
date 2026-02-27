@@ -1,10 +1,10 @@
+import { Link } from 'react-router-dom';
+
 export default function Footer() {
   const scrollToSection = (id: string) => {
     // Check if we're on the homepage
-    const isHomePage = window.location.pathname === '/' || 
-                       window.location.pathname === __BASE_PATH__ || 
-                       window.location.pathname === __BASE_PATH__ + '/';
-    
+    const isHomePage = window.location.pathname === '/';
+
     if (isHomePage) {
       // If on homepage, just scroll to the section
       const element = document.getElementById(id);
@@ -13,8 +13,7 @@ export default function Footer() {
       }
     } else {
       // If on another page, navigate to homepage with hash
-      const basePath = __BASE_PATH__ || '';
-      window.location.href = `${basePath}/#${id}`;
+      window.location.href = `/#${id}`;
     }
   };
 
@@ -23,10 +22,10 @@ export default function Footer() {
   };
 
   const goToHome = () => {
-    if (window.location.pathname === '/' || window.location.pathname === __BASE_PATH__ || window.location.pathname === __BASE_PATH__ + '/') {
+    if (window.location.pathname === '/') {
       scrollToTop();
     } else {
-      window.location.href = __BASE_PATH__ || '/';
+      window.location.href = '/';
     }
   };
 
@@ -37,7 +36,7 @@ export default function Footer() {
           <div>
             <div className="flex items-center gap-2 mb-4">
               <i className="ri-heart-fill text-[#A8B89F] text-2xl"></i>
-              <span className="font-serif text-xl font-semibold">My Care Personal Assistant™</span>
+              <span className="font-serif text-xl font-semibold">My Care Personal Assistant</span>
             </div>
             <p className="text-gray-400 text-sm leading-relaxed mb-6">
               Real human support when you need help most. Personal assistance for everyone.
@@ -69,11 +68,6 @@ export default function Footer() {
                   Pricing
                 </button>
               </li>
-              <li>
-                <button onClick={() => scrollToSection('contact')} className="text-white hover:text-[#A8B89F] transition-colors duration-200 cursor-pointer">
-                  Contact
-                </button>
-              </li>
             </ul>
           </div>
 
@@ -83,87 +77,51 @@ export default function Footer() {
             </h3>
             <ul className="space-y-3">
               <li>
-                <a 
-                  href="/privacy-policy" 
-                  onClick={(e) => {
-                    e.preventDefault();
-                    window.REACT_APP_NAVIGATE('/privacy-policy');
-                  }}
-                  className="text-white hover:text-[#A8B89F] transition-colors duration-200 cursor-pointer"
-                >
+                <Link to="/privacy-policy" className="text-white hover:text-[#A8B89F] transition-colors duration-200">
                   Privacy Policy
-                </a>
+                </Link>
               </li>
               <li>
-                <a 
-                  href="/terms-of-service" 
-                  onClick={(e) => {
-                    e.preventDefault();
-                    window.REACT_APP_NAVIGATE('/terms-of-service');
-                  }}
-                  className="text-white hover:text-[#A8B89F] transition-colors duration-200 cursor-pointer"
-                >
+                <Link to="/terms-of-service" className="text-white hover:text-[#A8B89F] transition-colors duration-200">
                   Terms of Service
-                </a>
+                </Link>
               </li>
               <li>
-                <a 
-                  href="/assistant-guidelines" 
-                  onClick={(e) => {
-                    e.preventDefault();
-                    window.REACT_APP_NAVIGATE('/assistant-guidelines');
-                  }}
-                  className="text-white hover:text-[#A8B89F] transition-colors duration-200 cursor-pointer"
-                >
+                <Link to="/assistant-guidelines" className="text-white hover:text-[#A8B89F] transition-colors duration-200">
                   Assistant Guidelines
-                </a>
+                </Link>
+              </li>
+              <li>
+                <Link to="/schedule" className="text-white hover:text-[#A8B89F] transition-colors duration-200">
+                  Schedule Meeting
+                </Link>
               </li>
             </ul>
           </div>
 
           <div>
             <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-400 mb-4">
-              Stay Connected
+              Contact
             </h3>
             <p className="text-gray-400 text-sm mb-4">
-              Get updates and tips for making the most of your MyCarePA personal assistant.
+              Ready to get started? We're here to help.
             </p>
-            <form className="flex gap-2">
-              <input
-                type="email"
-                placeholder="Your email"
-                className="flex-1 px-4 py-2 bg-transparent border border-gray-600 rounded-lg focus:border-[#A8B89F] focus:outline-none text-white placeholder-gray-500 text-sm"
-              />
-              <button
-                type="submit"
-                className="px-4 py-2 bg-[#A8B89F] rounded-lg hover:bg-[#8FA080] transition-colors duration-200 cursor-pointer whitespace-nowrap"
-              >
-                <i className="ri-arrow-right-line text-white"></i>
-              </button>
-            </form>
+            <a
+              href="mailto:support@mycarepersonalassistant.com"
+              className="text-[#A8B89F] hover:underline text-sm"
+            >
+              support@mycarepersonalassistant.com
+            </a>
           </div>
         </div>
 
         <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-xs sm:text-sm text-gray-400">
-          <p className="text-center md:text-left">© 2025 My Care Personal Assistant™. All rights reserved.</p>
+          <p className="text-center md:text-left">© 2025 My Care Personal Assistant. All rights reserved.</p>
           <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-6 text-center">
             <p>All assistants are trained professionals</p>
-            <span className="hidden sm:inline">•</span>
+            <span className="hidden sm:inline">|</span>
             <p>Conversations are confidential</p>
-            <span className="hidden sm:inline">•</span>
-            <p>Clear boundaries respected</p>
           </div>
-        </div>
-
-        <div className="mt-6 text-center">
-          <a 
-            href="https://readdy.ai/?ref=logo" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="text-gray-500 hover:text-[#A8B89F] transition-colors duration-200 text-sm cursor-pointer"
-          >
-            Powered by Readdy
-          </a>
         </div>
       </div>
     </footer>
