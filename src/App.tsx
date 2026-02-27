@@ -1538,7 +1538,7 @@ function HomePage() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
-  // Handle hash navigation (e.g., /#pricing)
+  // Handle hash navigation (e.g., /#pricing) - only on initial load
   useEffect(() => {
     if (location.hash) {
       const id = location.hash.replace('#', '')
@@ -1546,10 +1546,12 @@ function HomePage() {
       if (element) {
         setTimeout(() => {
           element.scrollIntoView({ behavior: 'smooth' })
+          // Clear the hash after scrolling so it doesn't interfere with normal scrolling
+          window.history.replaceState(null, '', window.location.pathname)
         }, 100)
       }
     }
-  }, [location.hash])
+  }, []) // Empty dependency - only run on mount
 
   return (
     <div className="min-h-screen bg-white">

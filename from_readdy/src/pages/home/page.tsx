@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useSEO } from '../../utils/seo';
 import { API_URL } from '../../config/api';
 import Hero from './components/Hero';
@@ -12,6 +13,7 @@ import Footer from './components/Footer';
 
 export default function HomePage() {
   const [showBanner, setShowBanner] = useState(false);
+  const location = useLocation();
 
   // SEO Configuration
   useSEO({
@@ -70,6 +72,21 @@ export default function HomePage() {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // Handle hash navigation (e.g., /#pricing) - only on initial load
+  useEffect(() => {
+    if (location.hash) {
+      const id = location.hash.replace('#', '');
+      const element = document.getElementById(id);
+      if (element) {
+        setTimeout(() => {
+          element.scrollIntoView({ behavior: 'smooth' });
+          // Clear the hash after scrolling so it doesn't interfere with normal scrolling
+          window.history.replaceState(null, '', window.location.pathname);
+        }, 100);
+      }
+    }
+  }, []); // Empty dependency - only run on mount
 
   return (
       <div className="min-h-screen bg-white">
