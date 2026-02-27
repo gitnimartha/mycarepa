@@ -1,20 +1,10 @@
 import { Link } from 'react-router-dom';
-import { CALENDLY_URL_FREE_INTRO } from '../../../config/api';
-
-declare global {
-  interface Window {
-    Calendly?: {
-      initPopupWidget: (options: { url: string }) => void;
-    };
-  }
-}
 
 export default function Hero() {
-  const openCalendlyFreeIntro = () => {
-    if (window.Calendly) {
-      window.Calendly.initPopupWidget({ url: CALENDLY_URL_FREE_INTRO });
-    } else {
-      window.open(CALENDLY_URL_FREE_INTRO, '_blank');
+  const scrollToSection = (id: string) => {
+    const element = document.getElementById(id);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
     }
   };
 
@@ -36,8 +26,8 @@ export default function Hero() {
             Your personal assistant when you need help most
           </h2>
           <p className="text-lg text-[#6B6B6B] leading-relaxed">
-            Life doesn't come with instructions. You don't have to figure everything out alone. 
-            MyCarePA, My Care Personal Assistant™, connects you with a real, trained human who helps you work 
+            Life doesn't come with instructions. You don't have to figure everything out alone.
+            MyCarePA, My Care Personal Assistant™, connects you with a real, trained human who helps you work
             through challenges, stay organized, and move forward.
           </p>
           <p className="text-lg text-[#6B6B6B] leading-relaxed">
@@ -45,7 +35,7 @@ export default function Hero() {
           </p>
           <div className="pt-4 flex flex-col items-start gap-3">
             <button
-              onClick={openCalendlyFreeIntro}
+              onClick={() => scrollToSection('pricing')}
               className="group relative w-full sm:w-auto px-10 py-4 bg-[#A8B89F] text-white text-lg font-semibold rounded-full overflow-hidden transition-all duration-300 whitespace-nowrap cursor-pointer hover:shadow-xl hover:-translate-y-1 hover:scale-105"
             >
               <span className="relative z-10 inline-flex items-center gap-2">

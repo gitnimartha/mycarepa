@@ -15,12 +15,18 @@ git checkout HEAD -- \
   src/App.tsx \
   src/main.tsx \
   src/index.css \
-  src/pages/home/components/Footer.tsx
+  src/config/api.ts \
+  src/pages/home/components/Footer.tsx \
+  src/pages/home/components/Hero.tsx \
+  src/pages/home/components/StickyBanner.tsx
 
 # Remove Readdy-specific files
 rm -rf src/i18n
 rm -f postcss.config.ts tailwind.config.ts vite-env.d.ts eslint.config.ts
 rm -f public/robots.txt public/sitemap.xml
+
+# Remove Contact.tsx (no contact form)
+rm -f src/pages/home/components/Contact.tsx
 
 echo "Done! Railway config restored."
 echo ""
