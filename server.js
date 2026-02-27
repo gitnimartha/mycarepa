@@ -719,6 +719,87 @@ app.post('/api/assistant/report-usage', async (req, res) => {
   }
 });
 
+// Admin: Create trial user (legacy users without checkout)
+app.post('/api/admin/create-trial-user', async (req, res) => {
+  try {
+    const { email, name, hours, password } = req.body;
+
+    // Verify admin password
+    const correctPassword = process.env.ADMIN_PASSWORD || process.env.ASSISTANT_PASSWORD || 'mycarepa2024';
+    if (password !== correctPassword) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+    const trialHours = parseInt(hours) || 1;
+
+    // Check if customer already exists
+    const existingCustomers = await stripe.customers.list({
+      email: normalizedEmail,
+      limit: 1,
+    });
+
+    let customer;
+    if (existingCustomers.data.length > 0) {
+      customer = existingCustomers.data[0];
+
+      // Check if already has a subscription
+      const existingSubs = await stripe.subscriptions.list({
+        customer: customer.id,
+        limit: 1,
+      });
+
+      if (existingSubs.data.length > 0) {
+        return res.status(400).json({
+          error: 'Customer already has a subscription',
+          customerId: customer.id,
+          email: customer.email
+        });
+      }
+    } else {
+      // Create new customer
+      customer = await stripe.customers.create({
+        email: normalizedEmail,
+        name: name || 'Trial User',
+      });
+    }
+
+    // Create subscription with Trial price
+    const trialPriceId = process.env.MYCARE_PRICE_TRIAL;
+    if (!trialPriceId) {
+      return res.status(500).json({ error: 'Trial price not configured. Set MYCARE_PRICE_TRIAL env var.' });
+    }
+
+    const subscription = await stripe.subscriptions.create({
+      customer: customer.id,
+      items: [{ price: trialPriceId }],
+      metadata: {
+        plan: 'trial',
+        included_hours: trialHours.toString(),
+        legacy_trial: 'true',
+        created_via: 'admin_api',
+      },
+    });
+
+    res.json({
+      success: true,
+      message: `Trial user created with ${trialHours} hour(s)`,
+      customerId: customer.id,
+      email: customer.email,
+      name: customer.name,
+      subscriptionId: subscription.id,
+      includedHours: trialHours,
+    });
+  } catch (error) {
+    console.error('Error creating trial user:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ status: 'healthy', timestamp: new Date().toISOString() });
@@ -744,5 +825,6 @@ app.listen(PORT, () => {
   console.log('  GET  /api/prices - Get available plans');
   console.log('  GET  /api/session/:sessionId - Get session details');
   console.log('  POST /api/webhook - Stripe webhook handler');
+  console.log('  POST /api/admin/create-trial-user - Create legacy trial user (admin)');
   console.log('  GET  /api/health - Health check');
 });
