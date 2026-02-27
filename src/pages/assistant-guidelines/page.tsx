@@ -121,30 +121,6 @@ export default function AssistantGuidelinesPage() {
           </section>
 
           <section>
-            <h2 className="font-serif text-2xl font-bold mb-4">Verifying Subscription Status Before Meetings</h2>
-            <p className="text-base leading-relaxed text-[#6B6B6B] mb-4">
-              Before proceeding with any scheduled meeting, assistants must verify the client's subscription status:
-            </p>
-            <ol className="list-decimal list-inside space-y-2 text-base text-[#6B6B6B] ml-4">
-              <li><strong>Check the Dashboard:</strong> Log into the Assistant Dashboard at <code className="bg-gray-100 px-2 py-1 rounded">/assistant</code></li>
-              <li><strong>Look Up Customer:</strong> Search for the customer's email address</li>
-              <li><strong>Verify Hours:</strong> Check if the customer has remaining hours in their plan</li>
-              <li><strong>Proceed or Decline:</strong>
-                <ul className="list-disc list-inside ml-6 mt-2 space-y-1">
-                  <li><strong>Has hours remaining:</strong> Proceed with the call and log hours used after</li>
-                  <li><strong>No hours remaining:</strong> Do not proceed with the call. Send a polite email explaining they need to upgrade their plan to continue service</li>
-                </ul>
-              </li>
-            </ol>
-            <div className="bg-[#FFF8F0] p-4 rounded-lg mt-4">
-              <p className="text-base text-[#2C2C2C]">
-                <i className="ri-information-line text-[#A8B89F] mr-2"></i>
-                <strong>Note:</strong> The scheduling link may be accessible to anyone, but the actual service is controlled by the assistant. Always verify subscription status before providing service.
-              </p>
-            </div>
-          </section>
-
-          <section>
             <h2 className="font-serif text-2xl font-bold mb-4">Quality Assurance</h2>
             <p className="text-base leading-relaxed text-[#6B6B6B]">
               We continuously monitor and improve our service quality through regular training, performance reviews, and client feedback. All assistants undergo background checks and complete comprehensive training before serving clients. We maintain a quality assurance team that reviews interactions and ensures compliance with our guidelines.

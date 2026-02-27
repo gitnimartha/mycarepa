@@ -1,10 +1,20 @@
 import { Link } from 'react-router-dom';
+import { CALENDLY_URL_FREE_INTRO } from '../../../config/api';
+
+declare global {
+  interface Window {
+    Calendly?: {
+      initPopupWidget: (options: { url: string }) => void;
+    };
+  }
+}
 
 export default function Hero() {
-  const scrollToContact = () => {
-    const element = document.getElementById('contact');
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
+  const openCalendlyFreeIntro = () => {
+    if (window.Calendly) {
+      window.Calendly.initPopupWidget({ url: CALENDLY_URL_FREE_INTRO });
+    } else {
+      window.open(CALENDLY_URL_FREE_INTRO, '_blank');
     }
   };
 
@@ -35,7 +45,7 @@ export default function Hero() {
           </p>
           <div className="pt-4 flex flex-col items-start gap-3">
             <button
-              onClick={scrollToContact}
+              onClick={openCalendlyFreeIntro}
               className="group relative w-full sm:w-auto px-10 py-4 bg-[#A8B89F] text-white text-lg font-semibold rounded-full overflow-hidden transition-all duration-300 whitespace-nowrap cursor-pointer hover:shadow-xl hover:-translate-y-1 hover:scale-105"
             >
               <span className="relative z-10 inline-flex items-center gap-2">

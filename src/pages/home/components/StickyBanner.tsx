@@ -1,3 +1,13 @@
+import { CALENDLY_URL_FREE_INTRO } from '../../../config/api';
+
+declare global {
+  interface Window {
+    Calendly?: {
+      initPopupWidget: (options: { url: string }) => void;
+    };
+  }
+}
+
 interface StickyBannerProps {
   show: boolean;
 }
@@ -7,6 +17,14 @@ export default function StickyBanner({ show }: StickyBannerProps) {
     const element = document.getElementById(id);
     if (element) {
       element.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  const openCalendlyFreeIntro = () => {
+    if (window.Calendly) {
+      window.Calendly.initPopupWidget({ url: CALENDLY_URL_FREE_INTRO });
+    } else {
+      window.open(CALENDLY_URL_FREE_INTRO, '_blank');
     }
   };
 
@@ -25,7 +43,7 @@ export default function StickyBanner({ show }: StickyBannerProps) {
         </div>
         <div className="flex flex-col md:flex-row items-center gap-3 md:gap-4 w-full md:w-auto">
           <button
-            onClick={() => scrollToSection('contact')}
+            onClick={openCalendlyFreeIntro}
             className="w-full md:w-auto px-6 py-2.5 bg-[#A8B89F] text-white rounded-full font-medium hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 whitespace-nowrap cursor-pointer"
           >
             Schedule Time
