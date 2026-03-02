@@ -24,6 +24,14 @@ export default function SuccessPage() {
         .then(data => {
           setSession(data);
           setLoading(false);
+
+          // Auto-save verified session so user doesn't need to verify on /schedule
+          if (data.customer_email) {
+            localStorage.setItem('mycarepa_verified_session', JSON.stringify({
+              email: data.customer_email.toLowerCase(),
+              expiry: Date.now() + 30 * 24 * 60 * 60 * 1000 // 30 days
+            }));
+          }
         })
         .catch(() => setLoading(false));
     } else {
