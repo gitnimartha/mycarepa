@@ -253,28 +253,35 @@ export default function AssistantDashboardPage() {
 
                     {/* Add Usage Form */}
                     <form onSubmit={handleReportUsage} className="pt-4 border-t border-gray-200 space-y-3">
-                      <label className="block text-sm font-medium text-[#2C2C2C]">
-                        Log Hours Used
-                      </label>
-                      <div className="flex gap-2">
-                        <input
-                          type="number"
-                          step="0.25"
-                          min="0.25"
-                          value={hours}
-                          onChange={(e) => setHours(e.target.value)}
-                          className="w-20 px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-[#A8B89F] focus:outline-none text-center"
-                          placeholder="Hours"
-                          required
-                        />
-                        <input
-                          type="text"
-                          value={inputtedBy}
-                          onChange={(e) => setInputtedBy(e.target.value)}
-                          className="flex-1 px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-[#A8B89F] focus:outline-none"
-                          placeholder="Your name"
-                          required
-                        />
+                      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                        <div className="w-full sm:w-28">
+                          <label className="block text-sm font-medium text-[#2C2C2C] mb-2">
+                            Hours Used:
+                          </label>
+                          <input
+                            type="number"
+                            step="0.25"
+                            min="0.25"
+                            value={hours}
+                            onChange={(e) => setHours(e.target.value)}
+                            className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-[#A8B89F] focus:outline-none text-center"
+                            placeholder="e.g. 0.5"
+                            required
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <label className="block text-sm font-medium text-[#2C2C2C] mb-2">
+                            Logged by:
+                          </label>
+                          <input
+                            type="text"
+                            value={inputtedBy}
+                            onChange={(e) => setInputtedBy(e.target.value)}
+                            className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-[#A8B89F] focus:outline-none"
+                            placeholder="Your name"
+                            required
+                          />
+                        </div>
                       </div>
                       <button
                         type="submit"
