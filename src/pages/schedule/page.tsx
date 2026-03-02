@@ -418,14 +418,17 @@ export default function SchedulePage() {
           </div>
         ) : null}
 
-        <div className="mt-8 pt-6 border-t border-gray-200 text-center">
-          <p className="text-sm text-[#6B6B6B] mb-2">
-            Don't have a subscription yet?
-          </p>
-          <Link to="/#pricing" className="text-[#A8B89F] hover:underline font-medium">
-            View Plans & Subscribe
-          </Link>
-        </div>
+{/* Only show subscription prompt for non-verified users */}
+        {status !== 'verified' && status !== 'no-hours' && (
+          <div className="mt-8 pt-6 border-t border-gray-200 text-center">
+            <p className="text-sm text-[#6B6B6B] mb-2">
+              Don't have a subscription yet?
+            </p>
+            <Link to="/#pricing" className="text-[#A8B89F] hover:underline font-medium">
+              View Plans & Subscribe
+            </Link>
+          </div>
+        )}
       </div>
     </div>
   );
