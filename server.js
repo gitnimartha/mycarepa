@@ -424,57 +424,67 @@ app.post('/api/verify-customer', async (req, res) => {
 
     const customer = customers.data[0];
 
-    // Get verification data from customer metadata
-    const storedCode = customer.metadata.verification_code;
-    const storedExpiry = parseInt(customer.metadata.verification_expiry || '0');
-    const attempts = parseInt(customer.metadata.verification_attempts || '0');
+    // Check if this is a returning verified user (saved session)
+    const isReturningUser = code === 'saved-session' && customer.metadata.email_verified === 'true';
 
-    if (!storedCode) {
-      return res.status(400).json({
-        error: 'Invalid or expired code',
-        message: 'Please request a new verification code.'
-      });
-    }
+    if (!isReturningUser) {
+      // Get verification data from customer metadata
+      const storedCode = customer.metadata.verification_code;
+      const storedExpiry = parseInt(customer.metadata.verification_expiry || '0');
+      const attempts = parseInt(customer.metadata.verification_attempts || '0');
 
-    // Check if code has expired
-    const now = Math.floor(Date.now() / 1000);
-    if (now > storedExpiry) {
-      // Clear expired code
+      if (!storedCode) {
+        return res.status(400).json({
+          error: 'Invalid or expired code',
+          message: 'Please request a new verification code.'
+        });
+      }
+
+      // Check if code has expired
+      const now = Math.floor(Date.now() / 1000);
+      if (now > storedExpiry) {
+        // Clear expired code
+        await stripe.customers.update(customer.id, {
+          metadata: { verification_code: '', verification_expiry: '', verification_attempts: '' }
+        });
+        return res.status(400).json({
+          error: 'Code expired',
+          message: 'Your verification code has expired. Please request a new one.'
+        });
+      }
+
+      // Check attempts (max 5)
+      if (attempts >= 5) {
+        await stripe.customers.update(customer.id, {
+          metadata: { verification_code: '', verification_expiry: '', verification_attempts: '' }
+        });
+        return res.status(400).json({
+          error: 'Too many attempts',
+          message: 'Too many incorrect attempts. Please request a new code.'
+        });
+      }
+
+      // Verify the code
+      if (storedCode !== code) {
+        await stripe.customers.update(customer.id, {
+          metadata: { verification_attempts: (attempts + 1).toString() }
+        });
+        return res.status(400).json({
+          error: 'Invalid code',
+          message: 'Incorrect verification code. Please try again.'
+        });
+      }
+
+      // Code is valid - clear it and mark as verified
       await stripe.customers.update(customer.id, {
-        metadata: { verification_code: '', verification_expiry: '', verification_attempts: '' }
-      });
-      return res.status(400).json({
-        error: 'Code expired',
-        message: 'Your verification code has expired. Please request a new one.'
-      });
-    }
-
-    // Check attempts (max 5)
-    if (attempts >= 5) {
-      await stripe.customers.update(customer.id, {
-        metadata: { verification_code: '', verification_expiry: '', verification_attempts: '' }
-      });
-      return res.status(400).json({
-        error: 'Too many attempts',
-        message: 'Too many incorrect attempts. Please request a new code.'
+        metadata: {
+          verification_code: '',
+          verification_expiry: '',
+          verification_attempts: '',
+          email_verified: 'true'
+        }
       });
     }
-
-    // Verify the code
-    if (storedCode !== code) {
-      await stripe.customers.update(customer.id, {
-        metadata: { verification_attempts: (attempts + 1).toString() }
-      });
-      return res.status(400).json({
-        error: 'Invalid code',
-        message: 'Incorrect verification code. Please try again.'
-      });
-    }
-
-    // Code is valid - clear it so it can't be reused
-    await stripe.customers.update(customer.id, {
-      metadata: { verification_code: '', verification_expiry: '', verification_attempts: '' }
-    });
 
     // Get active subscription
     const subscriptions = await stripe.subscriptions.list({

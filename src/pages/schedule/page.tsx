@@ -28,7 +28,59 @@ export default function SchedulePage() {
 
   useEffect(() => {
     window.scrollTo(0, 0);
+
+    // Check for saved verified session
+    const savedSession = localStorage.getItem('mycarepa_verified_session');
+    if (savedSession) {
+      const session = JSON.parse(savedSession);
+      // Check if session is still valid (30 days)
+      if (session.expiry > Date.now()) {
+        setEmail(session.email);
+        // Auto-verify by fetching customer data
+        fetchCustomerData(session.email);
+      } else {
+        // Clear expired session
+        localStorage.removeItem('mycarepa_verified_session');
+      }
+    }
   }, []);
+
+  const fetchCustomerData = async (verifiedEmail: string) => {
+    setStatus('verifying');
+    try {
+      const response = await fetch(`${API_URL}/api/verify-customer`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: verifiedEmail.toLowerCase(), code: 'saved-session' }),
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        // Session invalid, clear it
+        localStorage.removeItem('mycarepa_verified_session');
+        setStatus('idle');
+        return;
+      }
+
+      setCustomerData(data);
+      if (data.canSchedule) {
+        setStatus('verified');
+      } else {
+        setStatus('no-hours');
+      }
+    } catch {
+      localStorage.removeItem('mycarepa_verified_session');
+      setStatus('idle');
+    }
+  };
+
+  const clearSession = () => {
+    localStorage.removeItem('mycarepa_verified_session');
+    setEmail('');
+    setCode('');
+    setCustomerData(null);
+    setStatus('idle');
+  };
 
   const handleSendCode = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -86,6 +138,12 @@ export default function SchedulePage() {
       } else {
         setStatus('no-hours');
       }
+
+      // Save verified session to localStorage (30 days)
+      localStorage.setItem('mycarepa_verified_session', JSON.stringify({
+        email: email.toLowerCase(),
+        expiry: Date.now() + 30 * 24 * 60 * 60 * 1000
+      }));
     } catch {
       setErrorMessage('Network error. Please try again.');
       setStatus('code-sent');
@@ -301,6 +359,13 @@ export default function SchedulePage() {
               <i className="ri-calendar-line mr-2"></i>
               Schedule Meeting
             </button>
+
+            <button
+              onClick={clearSession}
+              className="mt-4 text-sm text-[#6B6B6B] hover:text-[#2C2C2C] transition-colors"
+            >
+              Not {customerData.customerName || email}? Click here
+            </button>
           </div>
         ) : status === 'no-hours' && customerData ? (
           <div className="text-center">
@@ -332,6 +397,13 @@ export default function SchedulePage() {
             <Link to="/#pricing" className="text-[#A8B89F] hover:underline text-sm">
               View all plans
             </Link>
+
+            <button
+              onClick={clearSession}
+              className="mt-4 block w-full text-sm text-[#6B6B6B] hover:text-[#2C2C2C] transition-colors"
+            >
+              Not {customerData.customerName || email}? Click here
+            </button>
           </div>
         ) : null}
 
