@@ -12,7 +12,11 @@ declare global {
 
 export default function SuccessPage() {
   const [searchParams] = useSearchParams();
-  const [session, setSession] = useState<{ customer_email?: string; customer?: { name?: string } } | null>(null);
+  const [session, setSession] = useState<{
+    customer_email?: string;
+    customer_details?: { email?: string; name?: string };
+    customer?: { name?: string; email?: string }
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const sessionId = searchParams.get('session_id');
 
@@ -26,9 +30,13 @@ export default function SuccessPage() {
           setLoading(false);
 
           // Auto-save verified session so user doesn't need to verify on /schedule
-          if (data.customer_email) {
+          // Check multiple possible email locations in Stripe response
+          const purchasedEmail = data.customer_email ||
+            data.customer_details?.email ||
+            data.customer?.email;
+          if (purchasedEmail) {
             localStorage.setItem('mycarepa_verified_session', JSON.stringify({
-              email: data.customer_email.toLowerCase(),
+              email: purchasedEmail.toLowerCase(),
               expiry: Date.now() + 30 * 24 * 60 * 60 * 1000 // 30 days
             }));
           }
@@ -39,10 +47,13 @@ export default function SuccessPage() {
     }
   }, [sessionId]);
 
+  const getEmail = () => session?.customer_email || session?.customer_details?.email || session?.customer?.email || '';
+  const getName = () => session?.customer_details?.name || session?.customer?.name || '';
+
   const openCalendly = () => {
     if (window.Calendly) {
       window.Calendly.initPopupWidget({
-        url: `${CALENDLY_URL_MEMBERS}?email=${encodeURIComponent(session?.customer_email || '')}&name=${encodeURIComponent(session?.customer?.name || '')}`
+        url: `${CALENDLY_URL_MEMBERS}?email=${encodeURIComponent(getEmail())}&name=${encodeURIComponent(getName())}`
       });
     } else {
       window.open(CALENDLY_URL_MEMBERS, '_blank');
