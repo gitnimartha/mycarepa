@@ -25,6 +25,7 @@ export default function SchedulePage() {
   } | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [tempCode, setTempCode] = useState<string | null>(null);
+  const [isAutoVerifying, setIsAutoVerifying] = useState(false);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -36,6 +37,7 @@ export default function SchedulePage() {
       // Check if session is still valid (30 days)
       if (session.expiry > Date.now()) {
         setEmail(session.email);
+        setIsAutoVerifying(true);
         // Auto-verify by fetching customer data
         fetchCustomerData(session.email);
       } else {
@@ -58,11 +60,13 @@ export default function SchedulePage() {
       if (!response.ok) {
         // Session invalid, clear it
         localStorage.removeItem('mycarepa_verified_session');
+        setIsAutoVerifying(false);
         setStatus('idle');
         return;
       }
 
       setCustomerData(data);
+      setIsAutoVerifying(false);
       if (data.canSchedule) {
         setStatus('verified');
       } else {
@@ -70,6 +74,7 @@ export default function SchedulePage() {
       }
     } catch {
       localStorage.removeItem('mycarepa_verified_session');
+      setIsAutoVerifying(false);
       setStatus('idle');
     }
   };
@@ -223,8 +228,14 @@ export default function SchedulePage() {
           </p>
         </div>
 
-        {/* Step 1: Email Entry */}
-        {(status === 'idle' || status === 'sending-code' || (status === 'error' && !code)) ? (
+        {/* Auto-verification loading state */}
+        {isAutoVerifying && status === 'verifying' ? (
+          <div className="text-center py-8">
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#A8B89F] border-t-transparent mx-auto mb-4"></div>
+            <p className="text-[#6B6B6B]">Loading your account...</p>
+          </div>
+        ) : /* Step 1: Email Entry */
+        (status === 'idle' || status === 'sending-code' || (status === 'error' && !code)) ? (
           <form onSubmit={handleSendCode} className="space-y-6">
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-[#2C2C2C] mb-2">
