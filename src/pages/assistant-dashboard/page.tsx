@@ -1,11 +1,23 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { API_URL } from '../../config/api';
+
+type SearchResult = {
+  customerId: string;
+  name: string;
+  email: string;
+  hasSubscription: boolean;
+  plan: string | null;
+};
 
 export default function AssistantDashboardPage() {
   const [password, setPassword] = useState('');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [email, setEmail] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
   const [hours, setHours] = useState('');
   const [inputtedBy, setInputtedBy] = useState('');
   const [customer, setCustomer] = useState<{
@@ -37,6 +49,48 @@ export default function AssistantDashboardPage() {
     }
   }, []);
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Debounced search
+  useEffect(() => {
+    if (searchQuery.length < 2) {
+      setSearchResults([]);
+      setShowDropdown(false);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const response = await fetch(`${API_URL}/api/assistant/search`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: searchQuery, password }),
+        });
+        const data = await response.json();
+        if (response.ok) {
+          setSearchResults(data.customers);
+          setShowDropdown(data.customers.length > 0);
+        }
+      } catch {
+        console.error('Search failed');
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery, password]);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setStatus('loading');
@@ -67,19 +121,22 @@ export default function AssistantDashboardPage() {
     setIsLoggedIn(false);
     setPassword('');
     setCustomer(null);
+    setSearchQuery('');
+    setSearchResults([]);
     localStorage.removeItem('assistant_session');
   };
 
-  const handleLookup = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const selectCustomer = async (selectedCustomer: SearchResult) => {
+    setShowDropdown(false);
+    setSearchQuery(selectedCustomer.email);
     setStatus('loading');
     setMessage('');
-    setCustomer(null);
+
     try {
       const response = await fetch(`${API_URL}/api/assistant/lookup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: selectedCustomer.email, password }),
       });
       const data = await response.json();
       if (response.ok) {
@@ -178,29 +235,66 @@ export default function AssistantDashboardPage() {
           </form>
         ) : (
           <div className="space-y-6">
-            {/* Customer Lookup */}
-            <form onSubmit={handleLookup} className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-[#2C2C2C] mb-2">Customer Email</label>
-                <div className="flex gap-2">
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="flex-1 px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-[#A8B89F] focus:outline-none"
-                    placeholder="customer@email.com"
-                    required
-                  />
-                  <button
-                    type="submit"
-                    disabled={status === 'loading'}
-                    className="px-4 py-2 bg-[#2C2C2C] text-white rounded-lg hover:bg-[#444] transition-colors disabled:opacity-50"
-                  >
-                    <i className="ri-search-line"></i>
-                  </button>
+            {/* Customer Search with Autocomplete */}
+            <div ref={searchRef} className="relative">
+              <label className="block text-sm font-medium text-[#2C2C2C] mb-2">
+                Search Customer
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setCustomer(null);
+                  }}
+                  className="w-full px-4 py-2 pr-10 border-2 border-gray-200 rounded-lg focus:border-[#A8B89F] focus:outline-none"
+                  placeholder="Type name or email..."
+                />
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  {isSearching ? (
+                    <i className="ri-loader-4-line animate-spin text-[#6B6B6B]"></i>
+                  ) : (
+                    <i className="ri-search-line text-[#6B6B6B]"></i>
+                  )}
                 </div>
               </div>
-            </form>
+
+              {/* Dropdown Results */}
+              {showDropdown && searchResults.length > 0 && (
+                <div className="absolute z-10 w-full mt-1 bg-white border-2 border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                  {searchResults.map((result) => (
+                    <button
+                      key={result.customerId}
+                      type="button"
+                      onClick={() => selectCustomer(result)}
+                      className="w-full px-4 py-3 text-left hover:bg-[#FFF8F0] border-b border-gray-100 last:border-b-0 transition-colors"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium text-[#2C2C2C]">
+                            {result.name || 'No Name'}
+                          </p>
+                          <p className="text-sm text-[#6B6B6B]">{result.email}</p>
+                        </div>
+                        {result.hasSubscription && (
+                          <span className="text-xs px-2 py-1 bg-[#A8B89F] text-white rounded-full">
+                            {result.plan}
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* No results message */}
+              {showDropdown && searchResults.length === 0 && searchQuery.length >= 2 && !isSearching && (
+                <div className="absolute z-10 w-full mt-1 bg-white border-2 border-gray-200 rounded-lg shadow-lg p-4 text-center text-[#6B6B6B]">
+                  No customers found
+                </div>
+              )}
+            </div>
 
             {/* Error Message */}
             {status === 'error' && (

@@ -568,6 +568,57 @@ app.post('/api/assistant/login', (req, res) => {
   }
 });
 
+// Assistant: Search customers by name or email (autocomplete)
+app.post('/api/assistant/search', async (req, res) => {
+  try {
+    const { query, password } = req.body;
+
+    // Verify password
+    const correctPassword = process.env.ASSISTANT_PASSWORD || 'mycarepa2024';
+    if (password !== correctPassword) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    if (!query || query.length < 2) {
+      return res.json({ customers: [] });
+    }
+
+    const sanitizedQuery = query.toLowerCase().trim().replace(/'/g, "\\'");
+
+    // Search customers by email or name using Stripe Search API
+    const searchResult = await stripe.customers.search({
+      query: `email~'${sanitizedQuery}' OR name~'${sanitizedQuery}'`,
+      limit: 10,
+    });
+
+    // Get subscription status for each customer
+    const customersWithSubs = await Promise.all(
+      searchResult.data.map(async (customer) => {
+        const subscriptions = await stripe.subscriptions.list({
+          customer: customer.id,
+          status: 'active',
+          limit: 1,
+        });
+        const hasSubscription = subscriptions.data.length > 0;
+        const plan = hasSubscription ? subscriptions.data[0].metadata.plan : null;
+
+        return {
+          customerId: customer.id,
+          name: customer.name || '',
+          email: customer.email,
+          hasSubscription,
+          plan: plan?.toUpperCase() || null,
+        };
+      })
+    );
+
+    res.json({ customers: customersWithSubs });
+  } catch (error) {
+    console.error('Customer search error:', error);
+    res.status(500).json({ error: 'Failed to search customers' });
+  }
+});
+
 // Assistant: Lookup customer by email
 app.post('/api/assistant/lookup', async (req, res) => {
   try {
