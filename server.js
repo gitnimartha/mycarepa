@@ -28,6 +28,54 @@ setInterval(() => {
   }
 }, 5 * 60 * 1000);
 
+// Helper: Find customer by email (case-insensitive)
+// Stripe's customers.list email filter is case-sensitive, so we need this workaround
+async function findCustomerByEmail(email) {
+  const normalizedEmail = email.toLowerCase().trim();
+
+  // First try exact match (faster)
+  const exactMatch = await stripe.customers.list({
+    email: normalizedEmail,
+    limit: 1,
+  });
+
+  if (exactMatch.data.length > 0) {
+    return exactMatch.data[0];
+  }
+
+  // If not found, search recent customers for case-insensitive match
+  // This handles emails stored with different casing
+  let hasMore = true;
+  let startingAfter = undefined;
+
+  while (hasMore) {
+    const customers = await stripe.customers.list({
+      limit: 100,
+      starting_after: startingAfter,
+    });
+
+    const match = customers.data.find(
+      c => c.email && c.email.toLowerCase() === normalizedEmail
+    );
+
+    if (match) {
+      return match;
+    }
+
+    hasMore = customers.has_more;
+    if (customers.data.length > 0) {
+      startingAfter = customers.data[customers.data.length - 1].id;
+    }
+
+    // Safety limit: don't search more than 500 customers
+    if (startingAfter && customers.data.length >= 500) {
+      break;
+    }
+  }
+
+  return null;
+}
+
 // Middleware - CORS configuration for Readdy frontend
 const allowedOrigins = [
   'https://mycarepersonalassistant.com',
@@ -316,22 +364,15 @@ app.post('/api/send-verification-code', async (req, res) => {
       return res.status(400).json({ error: 'Email is required' });
     }
 
-    const normalizedEmail = email.toLowerCase().trim();
+    // Find customer by email (case-insensitive)
+    const customer = await findCustomerByEmail(email);
 
-    // Check if customer exists with active subscription
-    const customers = await stripe.customers.list({
-      email: normalizedEmail,
-      limit: 1,
-    });
-
-    if (customers.data.length === 0) {
+    if (!customer) {
       return res.status(404).json({
         error: 'No subscription found',
         message: 'No active subscription found for this email. Please subscribe first.'
       });
     }
-
-    const customer = customers.data[0];
 
     // Check for active subscription
     const subscriptions = await stripe.subscriptions.list({
@@ -407,22 +448,15 @@ app.post('/api/verify-customer', async (req, res) => {
       return res.status(400).json({ error: 'Email and verification code are required' });
     }
 
-    const normalizedEmail = email.toLowerCase().trim();
+    // Find customer by email (case-insensitive)
+    const customer = await findCustomerByEmail(email);
 
-    // Search for customer by email
-    const customers = await stripe.customers.list({
-      email: normalizedEmail,
-      limit: 1,
-    });
-
-    if (customers.data.length === 0) {
+    if (!customer) {
       return res.status(404).json({
         error: 'No subscription found',
         message: 'No active subscription found for this email.'
       });
     }
-
-    const customer = customers.data[0];
 
     // Check if this is a returning verified user (saved session)
     const isReturningUser = code === 'saved-session' && customer.metadata.email_verified === 'true';
@@ -634,19 +668,12 @@ app.post('/api/assistant/lookup', async (req, res) => {
       return res.status(400).json({ error: 'Email is required' });
     }
 
-    const normalizedEmail = email.toLowerCase().trim();
+    // Find customer by email (case-insensitive)
+    const customer = await findCustomerByEmail(email);
 
-    // Search for customer
-    const customers = await stripe.customers.list({
-      email: normalizedEmail,
-      limit: 1,
-    });
-
-    if (customers.data.length === 0) {
+    if (!customer) {
       return res.status(404).json({ error: 'Customer not found' });
     }
-
-    const customer = customers.data[0];
 
     // Get subscription
     const subscriptions = await stripe.subscriptions.list({
