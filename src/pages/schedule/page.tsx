@@ -221,11 +221,11 @@ export default function SchedulePage() {
           <h1 className="font-serif text-3xl font-bold text-[#2C2C2C] mb-2">
             Schedule a Meeting
           </h1>
-          <p className="text-[#6B6B6B]">
-            {status === 'code-sent' || status === 'verifying'
-              ? 'Enter the verification code sent to your email.'
-              : 'Enter your email to verify your subscription.'}
-          </p>
+          {(status === 'code-sent' || status === 'verifying') && (
+            <p className="text-[#6B6B6B]">
+              Enter the verification code sent to your email.
+            </p>
+          )}
         </div>
 
         {/* Auto-verification loading state */}
