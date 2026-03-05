@@ -162,11 +162,6 @@ app.post('/api/create-checkout-session', async (req, res) => {
 
     const sessionConfig = {
       payment_method_types: ['card'], // Only card, no Link
-      payment_method_options: {
-        card: {
-          setup_future_usage: 'off_session',
-        },
-      },
       line_items: lineItems,
       mode: 'subscription',
       currency: 'usd',
