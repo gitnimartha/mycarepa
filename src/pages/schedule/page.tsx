@@ -16,6 +16,7 @@ export default function SchedulePage() {
   const [status, setStatus] = useState<'idle' | 'sending-code' | 'code-sent' | 'verifying' | 'verified' | 'no-hours' | 'error'>('idle');
   const [customerData, setCustomerData] = useState<{
     canSchedule: boolean;
+    customerId: string;
     customerName: string;
     plan: string;
     remainingHours: number;
@@ -186,12 +187,11 @@ export default function SchedulePage() {
   };
 
   const openCalendly = () => {
+    const calendlyUrl = `${CALENDLY_URL_MEMBERS}?email=${encodeURIComponent(email)}&name=${encodeURIComponent(customerData?.customerName || '')}&utm_content=${encodeURIComponent(customerData?.customerId || '')}`;
     if (window.Calendly) {
-      window.Calendly.initPopupWidget({
-        url: `${CALENDLY_URL_MEMBERS}?email=${encodeURIComponent(email)}&name=${encodeURIComponent(customerData?.customerName || '')}`
-      });
+      window.Calendly.initPopupWidget({ url: calendlyUrl });
     } else {
-      window.open(`${CALENDLY_URL_MEMBERS}?email=${encodeURIComponent(email)}`, '_blank');
+      window.open(calendlyUrl, '_blank');
     }
   };
 

@@ -15,7 +15,7 @@ export default function SuccessPage() {
   const [session, setSession] = useState<{
     customer_email?: string;
     customer_details?: { email?: string; name?: string };
-    customer?: { name?: string; email?: string }
+    customer?: string | { id?: string; name?: string; email?: string }
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const sessionId = searchParams.get('session_id');
@@ -47,16 +47,16 @@ export default function SuccessPage() {
     }
   }, [sessionId]);
 
-  const getEmail = () => session?.customer_email || session?.customer_details?.email || session?.customer?.email || '';
-  const getName = () => session?.customer_details?.name || session?.customer?.name || '';
+  const getEmail = () => session?.customer_email || session?.customer_details?.email || (typeof session?.customer === 'object' ? session?.customer?.email : '') || '';
+  const getName = () => session?.customer_details?.name || (typeof session?.customer === 'object' ? session?.customer?.name : '') || '';
+  const getCustomerId = () => typeof session?.customer === 'string' ? session?.customer : session?.customer?.id || '';
 
   const openCalendly = () => {
+    const calendlyUrl = `${CALENDLY_URL_MEMBERS}?email=${encodeURIComponent(getEmail())}&name=${encodeURIComponent(getName())}&utm_content=${encodeURIComponent(getCustomerId())}`;
     if (window.Calendly) {
-      window.Calendly.initPopupWidget({
-        url: `${CALENDLY_URL_MEMBERS}?email=${encodeURIComponent(getEmail())}&name=${encodeURIComponent(getName())}`
-      });
+      window.Calendly.initPopupWidget({ url: calendlyUrl });
     } else {
-      window.open(CALENDLY_URL_MEMBERS, '_blank');
+      window.open(calendlyUrl, '_blank');
     }
   };
 

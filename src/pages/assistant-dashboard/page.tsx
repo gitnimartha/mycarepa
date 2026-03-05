@@ -155,39 +155,43 @@ export default function AssistantDashboardPage() {
   const handleReportUsage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!customer) return;
-    setStatus('loading');
-    setMessage('');
+
+    const hoursToAdd = parseFloat(hours);
+    const previousCustomer = { ...customer };
+
+    // Optimistic update - immediately reflect the change
+    setCustomer({
+      ...customer,
+      usedHours: (customer.usedHours || 0) + hoursToAdd,
+      remainingHours: Math.max(0, (customer.remainingHours || 0) - hoursToAdd),
+    });
+    setMessage(`Successfully logged ${hours} hours!`);
+    setStatus('success');
+    setHours('');
+
     try {
       const response = await fetch(`${API_URL}/api/assistant/report-usage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           customerId: customer.customerId,
-          hours: parseFloat(hours),
+          hours: hoursToAdd,
           password,
           inputtedBy,
         }),
       });
       const data = await response.json();
-      if (response.ok) {
-        setMessage(`Successfully logged ${hours} hours!`);
-        setStatus('success');
-        setHours('');
-        // Refresh customer data
-        const refreshResponse = await fetch(`${API_URL}/api/assistant/lookup`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: customer.email, password }),
-        });
-        if (refreshResponse.ok) {
-          setCustomer(await refreshResponse.json());
-        }
-      } else {
+
+      if (!response.ok) {
+        // Revert on failure
+        setCustomer(previousCustomer);
         setMessage(data.error || 'Failed to log usage');
         setStatus('error');
       }
     } catch {
-      setMessage('Network error');
+      // Revert on network error
+      setCustomer(previousCustomer);
+      setMessage('Network error - hours not saved');
       setStatus('error');
     }
   };
