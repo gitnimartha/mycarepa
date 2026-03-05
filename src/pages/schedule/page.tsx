@@ -211,6 +211,22 @@ export default function SchedulePage() {
     }
   };
 
+  const openCustomerPortal = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/create-portal-session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.toLowerCase() }),
+      });
+      const data = await response.json();
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch (error) {
+      console.error('Portal error:', error);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#FFD4C4] via-[#FFF8F0] to-white flex items-center justify-center p-6">
       <div className="max-w-xl w-full bg-white rounded-3xl shadow-2xl p-8 sm:p-12">
@@ -369,6 +385,14 @@ export default function SchedulePage() {
             >
               <i className="ri-calendar-line mr-2"></i>
               Schedule Meeting
+            </button>
+
+            <button
+              onClick={openCustomerPortal}
+              className="mt-3 w-full px-6 py-3 border-2 border-[#A8B89F] text-[#A8B89F] font-semibold rounded-full hover:bg-[#A8B89F] hover:text-white transition-all duration-300 cursor-pointer"
+            >
+              <i className="ri-settings-3-line mr-2"></i>
+              Manage Subscription
             </button>
 
             <button
