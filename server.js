@@ -772,19 +772,17 @@ app.post('/api/assistant/report-usage', async (req, res) => {
       timestamp: Math.floor(Date.now() / 1000),
     });
 
-    // Store usage log in customer metadata
+    // Store compact usage log in customer metadata (500 char limit)
     const customer = await stripe.customers.retrieve(customerId);
     const existingLog = customer.metadata.usage_log ? JSON.parse(customer.metadata.usage_log) : [];
 
-    // Add new entry (keep last 50 entries to avoid metadata size limits)
+    // Compact format: first 8 chars of event ID + who inputted
     const newEntry = {
-      date: new Date().toISOString(),
-      hours: hoursNum,
-      inputtedBy: inputtedBy || 'Unknown',
-      eventId: meterEvent.identifier,
+      e: meterEvent.identifier.slice(0, 8),
+      by: inputtedBy || '?',
     };
     existingLog.push(newEntry);
-    const trimmedLog = existingLog.slice(-50);
+    const trimmedLog = existingLog.slice(-10); // ~30 chars each, 10 entries fits in 500
 
     // Update customer metadata
     await stripe.customers.update(customerId, {
