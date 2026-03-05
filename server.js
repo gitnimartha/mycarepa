@@ -861,6 +861,89 @@ app.post('/api/admin/create-trial-user', async (req, res) => {
   }
 });
 
+// Admin: Check customer status (for debugging)
+app.get('/api/admin/check-customer', async (req, res) => {
+  try {
+    const { email, password } = req.query;
+
+    // Verify password
+    const correctPassword = process.env.ADMIN_PASSWORD || process.env.ASSISTANT_PASSWORD || 'mycarepa2024';
+    if (password !== correctPassword) {
+      return res.status(401).json({ error: 'Unauthorized - password required as query param' });
+    }
+
+    if (!email) {
+      return res.status(400).json({ error: 'Email query param is required' });
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // Search for customer by email
+    const customers = await stripe.customers.list({
+      email: normalizedEmail,
+      limit: 10,
+    });
+
+    if (customers.data.length === 0) {
+      // Try case-insensitive search by listing recent customers
+      const recentCustomers = await stripe.customers.list({ limit: 100 });
+      const matchingCustomer = recentCustomers.data.find(
+        c => c.email && c.email.toLowerCase() === normalizedEmail
+      );
+
+      if (matchingCustomer) {
+        return res.json({
+          found: true,
+          note: 'Found via case-insensitive search',
+          customer: {
+            id: matchingCustomer.id,
+            email: matchingCustomer.email,
+            name: matchingCustomer.name,
+            created: new Date(matchingCustomer.created * 1000).toISOString(),
+            metadata: matchingCustomer.metadata,
+          }
+        });
+      }
+
+      return res.json({
+        found: false,
+        searchedEmail: normalizedEmail,
+        message: 'No customer found with this email in Stripe'
+      });
+    }
+
+    // Get customer details and subscriptions
+    const customer = customers.data[0];
+    const subscriptions = await stripe.subscriptions.list({
+      customer: customer.id,
+      limit: 5,
+    });
+
+    res.json({
+      found: true,
+      customer: {
+        id: customer.id,
+        email: customer.email,
+        name: customer.name,
+        created: new Date(customer.created * 1000).toISOString(),
+        metadata: customer.metadata,
+      },
+      subscriptions: subscriptions.data.map(sub => ({
+        id: sub.id,
+        status: sub.status,
+        plan: sub.metadata.plan || 'unknown',
+        includedHours: sub.metadata.included_hours || 'not set',
+        currentPeriodStart: new Date(sub.current_period_start * 1000).toISOString(),
+        currentPeriodEnd: new Date(sub.current_period_end * 1000).toISOString(),
+      })),
+      hasActiveSubscription: subscriptions.data.some(s => s.status === 'active'),
+    });
+  } catch (error) {
+    console.error('Error checking customer:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ status: 'healthy', timestamp: new Date().toISOString() });
