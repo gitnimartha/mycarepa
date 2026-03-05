@@ -405,7 +405,7 @@ app.post('/api/send-verification-code', async (req, res) => {
     if (resend) {
       await resend.emails.send({
         from: process.env.RESEND_FROM_EMAIL || 'MyCarePA <onboarding@resend.dev>',
-        to: normalizedEmail,
+        to: customer.email,
         subject: 'Your MyCarePA Verification Code',
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 20px;">
@@ -424,7 +424,7 @@ app.post('/api/send-verification-code', async (req, res) => {
         `,
       });
     } else {
-      console.log(`[DEV] Verification code for ${normalizedEmail}: ${code}`);
+      console.log(`[DEV] Verification code for ${customer.email}: ${code}`);
     }
 
     res.json({
