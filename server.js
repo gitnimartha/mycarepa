@@ -588,35 +588,6 @@ app.post('/api/verify-customer', async (req, res) => {
   }
 });
 
-// Create Stripe Customer Portal session
-app.post('/api/create-portal-session', async (req, res) => {
-  try {
-    const { email } = req.body;
-
-    if (!email) {
-      return res.status(400).json({ error: 'Email is required' });
-    }
-
-    // Find customer by email
-    const customer = await findCustomerByEmail(email);
-
-    if (!customer) {
-      return res.status(404).json({ error: 'Customer not found' });
-    }
-
-    // Create portal session
-    const portalSession = await stripe.billingPortal.sessions.create({
-      customer: customer.id,
-      return_url: `${req.headers.origin || 'http://localhost:5173'}/schedule`,
-    });
-
-    res.json({ url: portalSession.url });
-  } catch (error) {
-    console.error('Error creating portal session:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
 // ============================================
 // ASSISTANT DASHBOARD ENDPOINTS
 // ============================================
