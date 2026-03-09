@@ -672,7 +672,10 @@ app.post('/api/assistant/search', async (req, res) => {
       })
     );
 
-    res.json({ customers: customersWithSubs });
+    // Only return customers with active subscriptions
+    const activeCustomers = customersWithSubs.filter(c => c.hasSubscription);
+
+    res.json({ customers: activeCustomers });
   } catch (error) {
     console.error('Customer search error:', error);
     res.status(500).json({ error: 'Failed to search customers' });
