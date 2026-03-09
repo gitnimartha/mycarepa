@@ -995,6 +995,99 @@ app.get('/api/admin/check-customer', async (req, res) => {
   }
 });
 
+// Upgrade subscription (for existing subscribers)
+app.post('/api/upgrade-subscription', async (req, res) => {
+  try {
+    const { customerId, newPlan } = req.body;
+
+    if (!customerId || !newPlan) {
+      return res.status(400).json({ error: 'Customer ID and new plan are required' });
+    }
+
+    const planKey = newPlan.toLowerCase();
+    const planConfig = MYCARE_PRICES[planKey];
+
+    if (!planConfig) {
+      return res.status(400).json({ error: 'Invalid plan' });
+    }
+
+    // Get customer's active subscription
+    const subscriptions = await stripe.subscriptions.list({
+      customer: customerId,
+      status: 'active',
+      limit: 1,
+    });
+
+    if (subscriptions.data.length === 0) {
+      return res.status(404).json({ error: 'No active subscription found' });
+    }
+
+    const subscription = subscriptions.data[0];
+    const currentPlan = subscription.metadata.plan || 'unknown';
+
+    // Check if already on this plan
+    if (currentPlan === planKey) {
+      return res.status(400).json({
+        error: 'Same plan',
+        message: `You are already on the ${planConfig.name} plan.`
+      });
+    }
+
+    // Get subscription items
+    const items = subscription.items.data;
+
+    // Build update items - replace base price and hourly price
+    const updateItems = [];
+
+    // Find and replace base price item
+    const baseItem = items.find(item => !item.price.recurring?.usage_type);
+    if (baseItem) {
+      updateItems.push({
+        id: baseItem.id,
+        price: planConfig.base,
+      });
+    }
+
+    // Find and replace hourly/metered price item
+    const hourlyItem = items.find(item => item.price.recurring?.usage_type === 'metered');
+    if (hourlyItem && planConfig.hourly) {
+      updateItems.push({
+        id: hourlyItem.id,
+        price: planConfig.hourly,
+      });
+    } else if (!hourlyItem && planConfig.hourly) {
+      // Add hourly price if upgrading from trial
+      updateItems.push({
+        price: planConfig.hourly,
+      });
+    }
+
+    // Update subscription with proration
+    const updatedSubscription = await stripe.subscriptions.update(subscription.id, {
+      items: updateItems,
+      proration_behavior: 'create_prorations', // Charge difference immediately
+      metadata: {
+        plan: planKey,
+        included_hours: planConfig.includedHours.toString(),
+        upgraded_from: currentPlan,
+        upgraded_at: new Date().toISOString(),
+      },
+    });
+
+    res.json({
+      success: true,
+      message: `Successfully upgraded to ${planConfig.name}!`,
+      previousPlan: currentPlan,
+      newPlan: planKey,
+      includedHours: planConfig.includedHours,
+      subscriptionId: updatedSubscription.id,
+    });
+  } catch (error) {
+    console.error('Error upgrading subscription:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ status: 'healthy', timestamp: new Date().toISOString() });

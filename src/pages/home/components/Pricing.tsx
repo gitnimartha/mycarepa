@@ -4,6 +4,11 @@ import { API_URL } from '../../../config/api';
 export default function Pricing() {
   const [loading, setLoading] = useState<string | null>(null);
   const [loadingMessage, setLoadingMessage] = useState('Connecting...');
+  const [errorModal, setErrorModal] = useState<{
+    show: boolean;
+    currentPlan: string;
+    message: string;
+  } | null>(null);
 
   const handleCheckout = async (planId: string) => {
     setLoading(planId);
@@ -21,6 +26,22 @@ export default function Pricing() {
         body: JSON.stringify({ plan: planId, billingCycle: 'monthly' }),
       });
       const data = await response.json();
+
+      if (!response.ok) {
+        // Handle active subscription error
+        if (data.error === 'Active subscription exists') {
+          setErrorModal({
+            show: true,
+            currentPlan: data.currentPlan,
+            message: data.message,
+          });
+          setLoading(null);
+          clearTimeout(messageTimer);
+          return;
+        }
+        throw new Error(data.message || 'Checkout failed');
+      }
+
       if (data.url) {
         setLoadingMessage('Redirecting to payment...');
         window.location.href = data.url;
@@ -91,6 +112,46 @@ export default function Pricing() {
             <div className="w-12 h-12 border-4 border-[#A8B89F] border-t-transparent rounded-full animate-spin"></div>
             <p className="text-lg font-medium text-[#2C2C2C]">{loadingMessage}</p>
             <p className="text-sm text-[#6B6B6B]">Please wait...</p>
+          </div>
+        </div>
+      )}
+
+      {/* Active subscription error modal */}
+      {errorModal?.show && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-[#FFF8F0] rounded-full flex items-center justify-center mx-auto mb-4">
+                <i className="ri-information-line text-3xl text-[#FFB347]"></i>
+              </div>
+              <h3 className="font-serif text-2xl font-bold text-[#2C2C2C] mb-3">
+                Already Subscribed
+              </h3>
+              <p className="text-[#6B6B6B] mb-4">
+                You already have an active <span className="font-semibold text-[#A8B89F] uppercase">{errorModal.currentPlan}</span> subscription.
+              </p>
+              <div className="bg-[#FFF8F0] rounded-xl p-4 mb-6">
+                <p className="text-sm text-[#6B6B6B]">
+                  <i className="ri-customer-service-2-line mr-2 text-[#A8B89F]"></i>
+                  To change your plan, please contact our support team and we'll help you upgrade or downgrade.
+                </p>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button
+                  onClick={() => setErrorModal(null)}
+                  className="flex-1 px-6 py-3 border-2 border-gray-200 text-[#6B6B6B] font-semibold rounded-full hover:bg-gray-50 transition-colors cursor-pointer"
+                >
+                  Close
+                </button>
+                <a
+                  href="mailto:support@mycarepa.com?subject=Plan%20Change%20Request"
+                  className="flex-1 px-6 py-3 bg-[#A8B89F] text-white font-semibold rounded-full hover:shadow-lg transition-all text-center"
+                >
+                  <i className="ri-mail-line mr-2"></i>
+                  Contact Support
+                </a>
+              </div>
+            </div>
           </div>
         </div>
       )}
