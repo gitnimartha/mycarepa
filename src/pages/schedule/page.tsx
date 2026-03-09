@@ -10,14 +10,6 @@ declare global {
   }
 }
 
-// Plan hierarchy for upgrade options
-const PLAN_ORDER = ['trial', 'starter', 'plus', 'pro'];
-const PLAN_DETAILS: Record<string, { name: string; price: string; hours: number }> = {
-  starter: { name: 'Starter', price: '$99/mo', hours: 4 },
-  plus: { name: 'Plus', price: '$249/mo', hours: 10 },
-  pro: { name: 'Pro', price: '$499/mo', hours: 20 },
-};
-
 export default function SchedulePage() {
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
@@ -35,11 +27,6 @@ export default function SchedulePage() {
   const [errorMessage, setErrorMessage] = useState('');
   const [tempCode, setTempCode] = useState<string | null>(null);
   const [isAutoVerifying, setIsAutoVerifying] = useState(false);
-
-  // Upgrade state
-  const [showUpgradeOptions, setShowUpgradeOptions] = useState(false);
-  const [upgrading, setUpgrading] = useState(false);
-  const [upgradeMessage, setUpgradeMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -208,54 +195,6 @@ export default function SchedulePage() {
     }
   };
 
-  // Get available upgrade options based on current plan
-  const getUpgradeOptions = () => {
-    if (!customerData) return [];
-    const currentPlanIndex = PLAN_ORDER.indexOf(customerData.plan.toLowerCase());
-    return PLAN_ORDER
-      .slice(currentPlanIndex + 1)
-      .filter(plan => plan !== 'trial' && PLAN_DETAILS[plan]);
-  };
-
-  const handleUpgrade = async (newPlan: string) => {
-    if (!customerData) return;
-
-    setUpgrading(true);
-    setUpgradeMessage(null);
-
-    try {
-      const response = await fetch(`${API_URL}/api/upgrade-subscription`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          customerId: customerData.customerId,
-          newPlan,
-        }),
-      });
-      const data = await response.json();
-
-      if (!response.ok) {
-        setUpgradeMessage({ type: 'error', text: data.message || data.error || 'Upgrade failed' });
-        setUpgrading(false);
-        return;
-      }
-
-      // Success - update customer data
-      setUpgradeMessage({ type: 'success', text: data.message });
-      setShowUpgradeOptions(false);
-
-      // Refresh customer data to get new hours
-      setTimeout(() => {
-        fetchCustomerData(email);
-      }, 1500);
-    } catch (error) {
-      console.error('Upgrade error:', error);
-      setUpgradeMessage({ type: 'error', text: 'Network error. Please try again.' });
-    } finally {
-      setUpgrading(false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#FFD4C4] via-[#FFF8F0] to-white flex items-center justify-center p-6">
       <div className="max-w-xl w-full bg-white rounded-3xl shadow-2xl p-8 sm:p-12">
@@ -411,18 +350,6 @@ export default function SchedulePage() {
               </div>
             </div>
 
-            {/* Upgrade message */}
-            {upgradeMessage && (
-              <div className={`mb-4 p-4 rounded-lg text-sm ${
-                upgradeMessage.type === 'success'
-                  ? 'bg-green-50 border border-green-200 text-green-700'
-                  : 'bg-red-50 border border-red-200 text-red-700'
-              }`}>
-                <i className={`mr-2 ${upgradeMessage.type === 'success' ? 'ri-checkbox-circle-line' : 'ri-error-warning-line'}`}></i>
-                {upgradeMessage.text}
-              </div>
-            )}
-
             <button
               onClick={openCalendly}
               className="w-full px-8 py-4 bg-[#A8B89F] text-white text-lg font-semibold rounded-full hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer"
@@ -430,42 +357,6 @@ export default function SchedulePage() {
               <i className="ri-calendar-line mr-2"></i>
               Schedule Meeting
             </button>
-
-            {/* Upgrade button - only show if not on Pro */}
-            {getUpgradeOptions().length > 0 && (
-              <button
-                onClick={() => setShowUpgradeOptions(!showUpgradeOptions)}
-                className="mt-3 w-full px-6 py-3 border-2 border-[#A8B89F] text-[#A8B89F] font-semibold rounded-full hover:bg-[#A8B89F] hover:text-white transition-all duration-300 cursor-pointer"
-              >
-                <i className="ri-arrow-up-circle-line mr-2"></i>
-                {showUpgradeOptions ? 'Hide Options' : 'Upgrade Plan'}
-              </button>
-            )}
-
-            {/* Upgrade options */}
-            {showUpgradeOptions && (
-              <div className="mt-4 space-y-3">
-                {getUpgradeOptions().map(plan => (
-                  <button
-                    key={plan}
-                    onClick={() => handleUpgrade(plan)}
-                    disabled={upgrading}
-                    className="w-full p-4 border-2 border-gray-200 rounded-xl hover:border-[#A8B89F] transition-colors text-left disabled:opacity-50 cursor-pointer"
-                  >
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <span className="font-semibold text-[#2C2C2C]">{PLAN_DETAILS[plan].name}</span>
-                        <span className="text-[#6B6B6B] text-sm ml-2">({PLAN_DETAILS[plan].hours} hrs/mo)</span>
-                      </div>
-                      <span className="text-[#A8B89F] font-semibold">{PLAN_DETAILS[plan].price}</span>
-                    </div>
-                  </button>
-                ))}
-                <p className="text-xs text-[#6B6B6B] mt-2">
-                  Upgrade takes effect immediately. Prorated charges apply.
-                </p>
-              </div>
-            )}
 
             <button
               onClick={clearSession}
@@ -481,7 +372,9 @@ export default function SchedulePage() {
               <h3 className="font-semibold text-[#2C2C2C] mb-2">
                 No Hours Remaining
               </h3>
-              <p className="text-[#6B6B6B] text-sm mb-2">{customerData.message}</p>
+              <p className="text-[#6B6B6B] text-sm mb-2">
+                You've used all your included hours for this billing period.
+              </p>
               <p className="text-xs text-[#A8B89F] font-medium mb-4">
                 Current Plan: {customerData.plan.toUpperCase()}
               </p>
@@ -497,55 +390,18 @@ export default function SchedulePage() {
               </div>
             </div>
 
-            {/* Upgrade message */}
-            {upgradeMessage && (
-              <div className={`mb-4 p-4 rounded-lg text-sm ${
-                upgradeMessage.type === 'success'
-                  ? 'bg-green-50 border border-green-200 text-green-700'
-                  : 'bg-red-50 border border-red-200 text-red-700'
-              }`}>
-                <i className={`mr-2 ${upgradeMessage.type === 'success' ? 'ri-checkbox-circle-line' : 'ri-error-warning-line'}`}></i>
-                {upgradeMessage.text}
-              </div>
-            )}
+            {/* Info about overage */}
+            <div className="bg-[#E8F4E8] rounded-xl p-4 mb-4">
+              <p className="text-sm text-[#2C2C2C]">
+                <i className="ri-information-line mr-2 text-[#A8B89F]"></i>
+                You can still schedule meetings. Additional hours will be billed at the overage rate.
+              </p>
+            </div>
 
-            {/* Upgrade options - show directly for no-hours users */}
-            {getUpgradeOptions().length > 0 ? (
-              <div className="space-y-3 mb-4">
-                <p className="text-sm font-medium text-[#2C2C2C]">Upgrade to get more hours:</p>
-                {getUpgradeOptions().map(plan => (
-                  <button
-                    key={plan}
-                    onClick={() => handleUpgrade(plan)}
-                    disabled={upgrading}
-                    className="w-full p-4 border-2 border-[#A8B89F] rounded-xl hover:bg-[#A8B89F] hover:text-white transition-colors text-left disabled:opacity-50 cursor-pointer group"
-                  >
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <span className="font-semibold text-[#2C2C2C] group-hover:text-white">{PLAN_DETAILS[plan].name}</span>
-                        <span className="text-[#6B6B6B] group-hover:text-white/80 text-sm ml-2">({PLAN_DETAILS[plan].hours} hrs/mo)</span>
-                      </div>
-                      <span className="text-[#A8B89F] group-hover:text-white font-semibold">{PLAN_DETAILS[plan].price}</span>
-                    </div>
-                  </button>
-                ))}
-                <p className="text-xs text-[#6B6B6B]">
-                  Upgrade takes effect immediately. Prorated charges apply.
-                </p>
-              </div>
-            ) : (
-              <div className="bg-[#E8F4E8] rounded-xl p-4 mb-4">
-                <p className="text-sm text-[#2C2C2C]">
-                  <i className="ri-information-line mr-2 text-[#A8B89F]"></i>
-                  You're on the Pro plan. You can still schedule meetings - additional hours will be billed at the overage rate.
-                </p>
-              </div>
-            )}
-
-            {/* Still allow scheduling with overage */}
+            {/* Schedule with overage */}
             <button
               onClick={openCalendly}
-              className="w-full px-8 py-4 bg-[#6B6B6B] text-white text-lg font-semibold rounded-full hover:bg-[#2C2C2C] transition-all duration-300 cursor-pointer mb-3"
+              className="w-full px-8 py-4 bg-[#A8B89F] text-white text-lg font-semibold rounded-full hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer"
             >
               <i className="ri-calendar-line mr-2"></i>
               Schedule Anyway (Overage Applies)
@@ -553,14 +409,14 @@ export default function SchedulePage() {
 
             <button
               onClick={clearSession}
-              className="mt-2 block w-full text-sm text-[#6B6B6B] hover:text-[#2C2C2C] transition-colors"
+              className="mt-4 block w-full text-sm text-[#6B6B6B] hover:text-[#2C2C2C] transition-colors"
             >
               Not {customerData.customerName || email}? Click here
             </button>
           </div>
         ) : null}
 
-{/* Only show subscription prompt for non-verified users */}
+        {/* Only show subscription prompt for non-verified users */}
         {status !== 'verified' && status !== 'no-hours' && (
           <div className="mt-8 pt-6 border-t border-gray-200 text-center">
             <p className="text-sm text-[#6B6B6B] mb-2">
