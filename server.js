@@ -180,9 +180,33 @@ app.post('/api/create-checkout-session', async (req, res) => {
       },
     };
 
-    // Add customer email if provided
+    // Check if customer already exists - reuse to avoid duplicates
     if (customerEmail) {
-      sessionConfig.customer_email = customerEmail;
+      const existingCustomer = await findCustomerByEmail(customerEmail);
+
+      if (existingCustomer) {
+        // Check if they have an active subscription
+        const activeSubscriptions = await stripe.subscriptions.list({
+          customer: existingCustomer.id,
+          status: 'active',
+          limit: 1,
+        });
+
+        if (activeSubscriptions.data.length > 0) {
+          const currentPlan = activeSubscriptions.data[0].metadata.plan || 'unknown';
+          return res.status(400).json({
+            error: 'Active subscription exists',
+            message: `You already have an active ${currentPlan.toUpperCase()} subscription. Please contact support to change your plan.`,
+            currentPlan,
+          });
+        }
+
+        // Reuse existing customer
+        sessionConfig.customer = existingCustomer.id;
+      } else {
+        // New customer
+        sessionConfig.customer_email = customerEmail;
+      }
     }
 
     // For free trial, allow trial period
