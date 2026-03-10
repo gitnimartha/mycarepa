@@ -232,11 +232,13 @@ app.post('/api/report-usage', async (req, res) => {
       return res.status(400).json({ error: 'customerId and hours are required' });
     }
 
+    // Note: Test meter uses "hours" key, Live meter uses "value" key
     const meterEvent = await stripe.billing.meterEvents.create({
       event_name: process.env.MYCARE_METER_EVENT_NAME || 'assistant_hours_used',
       payload: {
         stripe_customer_id: customerId,
         value: hours.toString(),
+        hours: hours.toString(),
       },
       timestamp: Math.floor(Date.now() / 1000),
     });
@@ -790,11 +792,13 @@ app.post('/api/assistant/report-usage', async (req, res) => {
     }
 
     // Report usage to Stripe
+    // Note: Test meter uses "hours" key, Live meter uses "value" key
     const meterEvent = await stripe.billing.meterEvents.create({
       event_name: process.env.MYCARE_METER_EVENT_NAME || 'assistant_hours_used',
       payload: {
         stripe_customer_id: customerId,
         value: hoursNum.toString(),
+        hours: hoursNum.toString(),
       },
       timestamp: Math.floor(Date.now() / 1000),
     });
