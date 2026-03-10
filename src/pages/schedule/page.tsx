@@ -25,7 +25,6 @@ export default function SchedulePage() {
     message: string;
   } | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
-  const [tempCode, setTempCode] = useState<string | null>(null);
   const [isAutoVerifying, setIsAutoVerifying] = useState(false);
 
   useEffect(() => {
@@ -92,7 +91,6 @@ export default function SchedulePage() {
     e.preventDefault();
     setStatus('sending-code');
     setErrorMessage('');
-    setTempCode(null);
 
     try {
       const response = await fetch(`${API_URL}/api/send-verification-code`, {
@@ -106,10 +104,6 @@ export default function SchedulePage() {
         setErrorMessage(data.message || 'Unable to send verification code.');
         setStatus('error');
         return;
-      }
-
-      if (data._tempCode) {
-        setTempCode(data._tempCode);
       }
 
       setStatus('code-sent');
@@ -173,10 +167,6 @@ export default function SchedulePage() {
         setErrorMessage(data.message || 'Unable to send verification code.');
         setStatus('code-sent');
         return;
-      }
-
-      if (data._tempCode) {
-        setTempCode(data._tempCode);
       }
 
       setStatus('code-sent');
@@ -260,20 +250,6 @@ export default function SchedulePage() {
                 Code sent to <strong>{email}</strong>
               </p>
             </div>
-
-            {tempCode && (
-              <div className="bg-[#FFD4C4] border-2 border-[#A8B89F] rounded-lg p-4 mb-4 relative">
-                <button
-                  type="button"
-                  onClick={() => setTempCode(null)}
-                  className="absolute top-2 right-2 text-[#6B6B6B] hover:text-[#2C2C2C]"
-                >
-                  <i className="ri-close-line text-lg"></i>
-                </button>
-                <p className="text-xs text-[#6B6B6B] mb-1">Demo Mode - Your code:</p>
-                <p className="text-2xl font-mono font-bold text-[#2C2C2C] tracking-widest">{tempCode}</p>
-              </div>
-            )}
 
             <div>
               <label htmlFor="code" className="block text-sm font-medium text-[#2C2C2C] mb-2">
