@@ -109,7 +109,7 @@ const MYCARE_PRICES = {
   trial: {
     base: process.env.MYCARE_PRICE_TRIAL,
     name: 'Free Trial',
-    includedHours: 1,
+    includedHours: 3,
   },
   starter: {
     base: process.env.MYCARE_PRICE_STARTER_BASE,
