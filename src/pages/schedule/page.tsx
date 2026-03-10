@@ -410,48 +410,79 @@ export default function SchedulePage() {
               Welcome back, {customerData.customerName || 'Member'}. You've used all your included hours this period.
             </p>
 
-            <button
-              onClick={openCalendly}
-              className="w-full px-8 py-4 bg-[#A8B89F] text-white text-lg font-semibold rounded-full hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer"
-            >
-              <i className="ri-calendar-line mr-2"></i>
-              Schedule Meeting
-            </button>
+            {/* Trial users: Show upgrade prompt instead of scheduling */}
+            {customerData.plan?.toLowerCase() === 'trial' ? (
+              <>
+                <div className="bg-[#FFF8F0] rounded-2xl p-6 mb-6">
+                  <i className="ri-gift-line text-4xl text-[#FFB347] mb-3"></i>
+                  <h3 className="font-semibold text-[#2C2C2C] mb-2">
+                    Trial Hours Used
+                  </h3>
+                  <p className="text-[#6B6B6B] text-sm">
+                    You've used all {customerData.includedHours} trial hours. Upgrade to a paid plan to continue scheduling meetings.
+                  </p>
+                </div>
 
-            <p className="mt-3 text-xs text-[#BBBBBB] flex items-center justify-center gap-1">
-              <span>Overage rates may apply.</span>
-              <span className="relative inline-flex items-center justify-center w-4 h-4">
-                <button
-                  type="button"
-                  onMouseEnter={() => setShowOverageTooltip(true)}
-                  onMouseLeave={() => setShowOverageTooltip(false)}
-                  onFocus={() => setShowOverageTooltip(true)}
-                  onBlur={() => setShowOverageTooltip(false)}
-                  className="w-4 h-4 flex items-center justify-center text-[#BBBBBB] hover:text-[#9B9B9B] transition-colors cursor-pointer"
-                  aria-label="Overage rate info"
+                <Link
+                  to="/#pricing"
+                  className="inline-block w-full px-8 py-4 bg-[#A8B89F] text-white text-lg font-semibold rounded-full hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer"
                 >
-                  <i className="ri-information-line text-sm"></i>
+                  <i className="ri-arrow-up-circle-line mr-2"></i>
+                  Upgrade Your Plan
+                </Link>
+
+                <p className="mt-3 text-xs text-[#BBBBBB]">
+                  <a href="mailto:support@mycarepa.com" className="underline hover:text-[#9B9B9B] transition-colors">
+                    Questions? Contact us.
+                  </a>
+                </p>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={openCalendly}
+                  className="w-full px-8 py-4 bg-[#A8B89F] text-white text-lg font-semibold rounded-full hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer"
+                >
+                  <i className="ri-calendar-line mr-2"></i>
+                  Schedule Meeting
                 </button>
-                {showOverageTooltip && (
-                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 bg-[#2C2C2C] text-white text-xs rounded-xl px-3 py-2.5 shadow-lg z-10 pointer-events-none">
-                    <p className="leading-relaxed">
-                      Additional hours beyond your plan are billed at{' '}
-                      <strong>
-                        {customerData?.plan?.toLowerCase() === 'pro'
-                          ? '$28/hour'
-                          : customerData?.plan?.toLowerCase() === 'plus'
-                          ? '$32/hour'
-                          : '$35/hour'}
-                      </strong>. You'll be notified before any charges apply.
-                    </p>
-                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-[#2C2C2C]"></div>
-                  </div>
-                )}
-              </span>
-              <a href="mailto:support@mycarepa.com" className="underline hover:text-[#9B9B9B] transition-colors ml-1">
-                Questions? Contact us.
-              </a>
-            </p>
+
+                <p className="mt-3 text-xs text-[#BBBBBB] flex items-center justify-center gap-1">
+                  <span>Overage rates may apply.</span>
+                  <span className="relative inline-flex items-center justify-center w-4 h-4">
+                    <button
+                      type="button"
+                      onMouseEnter={() => setShowOverageTooltip(true)}
+                      onMouseLeave={() => setShowOverageTooltip(false)}
+                      onFocus={() => setShowOverageTooltip(true)}
+                      onBlur={() => setShowOverageTooltip(false)}
+                      className="w-4 h-4 flex items-center justify-center text-[#BBBBBB] hover:text-[#9B9B9B] transition-colors cursor-pointer"
+                      aria-label="Overage rate info"
+                    >
+                      <i className="ri-information-line text-sm"></i>
+                    </button>
+                    {showOverageTooltip && (
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 bg-[#2C2C2C] text-white text-xs rounded-xl px-3 py-2.5 shadow-lg z-10 pointer-events-none">
+                        <p className="leading-relaxed">
+                          Additional hours beyond your plan are billed at{' '}
+                          <strong>
+                            {customerData?.plan?.toLowerCase() === 'pro'
+                              ? '$28/hour'
+                              : customerData?.plan?.toLowerCase() === 'plus'
+                              ? '$32/hour'
+                              : '$35/hour'}
+                          </strong>. You'll be notified before any charges apply.
+                        </p>
+                        <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-[#2C2C2C]"></div>
+                      </div>
+                    )}
+                  </span>
+                  <a href="mailto:support@mycarepa.com" className="underline hover:text-[#9B9B9B] transition-colors ml-1">
+                    Questions? Contact us.
+                  </a>
+                </p>
+              </>
+            )}
 
             <button
               onClick={clearSession}
