@@ -1,6 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { API_URL, CALENDLY_URL_MEMBERS } from '../../config/api';
+
+// ─── MAINTENANCE MODE ───────────────────────────────────────────────
+// Set to true to show the maintenance screen, false to allow scheduling
+const MAINTENANCE_MODE = false;
+// ────────────────────────────────────────────────────────────────────
 
 declare global {
   interface Window {
@@ -25,7 +30,9 @@ export default function SchedulePage() {
     message: string;
   } | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
+  const [tempCode, setTempCode] = useState<string | null>(null);
   const [isAutoVerifying, setIsAutoVerifying] = useState(false);
+  const [showOverageTooltip, setShowOverageTooltip] = useState(false);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -91,6 +98,7 @@ export default function SchedulePage() {
     e.preventDefault();
     setStatus('sending-code');
     setErrorMessage('');
+    setTempCode(null);
 
     try {
       const response = await fetch(`${API_URL}/api/send-verification-code`, {
@@ -104,6 +112,10 @@ export default function SchedulePage() {
         setErrorMessage(data.message || 'Unable to send verification code.');
         setStatus('error');
         return;
+      }
+
+      if (data._tempCode) {
+        setTempCode(data._tempCode);
       }
 
       setStatus('code-sent');
@@ -169,6 +181,10 @@ export default function SchedulePage() {
         return;
       }
 
+      if (data._tempCode) {
+        setTempCode(data._tempCode);
+      }
+
       setStatus('code-sent');
     } catch {
       setErrorMessage('Network error. Please try again.');
@@ -184,6 +200,39 @@ export default function SchedulePage() {
       window.open(calendlyUrl, '_blank');
     }
   };
+
+  if (MAINTENANCE_MODE) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-[#FFD4C4] via-[#FFF8F0] to-white flex items-center justify-center p-6">
+        <div className="max-w-xl w-full bg-white rounded-3xl shadow-2xl p-8 sm:p-12 text-center">
+          <div className="flex items-center justify-center mb-6">
+            <div className="w-16 h-16 flex items-center justify-center bg-[#FFF0E8] rounded-full">
+              <i className="ri-tools-line text-3xl text-[#A8B89F]"></i>
+            </div>
+          </div>
+          <h1 className="font-serif text-2xl font-bold text-[#2C2C2C] mb-3">
+            Scheduling Temporarily Unavailable
+          </h1>
+          <p className="text-[#6B6B6B] text-sm leading-relaxed mb-6">
+            We're performing a quick update to improve your experience. Scheduling will be back shortly — thank you for your patience!
+          </p>
+          <p className="text-xs text-[#BBBBBB] mb-8">
+            Need immediate help?{' '}
+            <a href="mailto:support@mycarepa.com" className="underline hover:text-[#9B9B9B] transition-colors">
+              Contact us
+            </a>
+          </p>
+          <Link
+            to="/"
+            className="inline-block px-8 py-3 bg-[#A8B89F] text-white text-sm font-semibold rounded-full hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 cursor-pointer whitespace-nowrap"
+          >
+            <i className="ri-home-line mr-2"></i>
+            Back to Home
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#FFD4C4] via-[#FFF8F0] to-white flex items-center justify-center p-6">
@@ -250,6 +299,20 @@ export default function SchedulePage() {
                 Code sent to <strong>{email}</strong>
               </p>
             </div>
+
+            {tempCode && (
+              <div className="bg-[#FFD4C4] border-2 border-[#A8B89F] rounded-lg p-4 mb-4 relative">
+                <button
+                  type="button"
+                  onClick={() => setTempCode(null)}
+                  className="absolute top-2 right-2 text-[#6B6B6B] hover:text-[#2C2C2C]"
+                >
+                  <i className="ri-close-line text-lg"></i>
+                </button>
+                <p className="text-xs text-[#6B6B6B] mb-1">Demo Mode - Your code:</p>
+                <p className="text-2xl font-mono font-bold text-[#2C2C2C] tracking-widest">{tempCode}</p>
+              </div>
+            )}
 
             <div>
               <label htmlFor="code" className="block text-sm font-medium text-[#2C2C2C] mb-2">
@@ -343,49 +406,56 @@ export default function SchedulePage() {
           </div>
         ) : status === 'no-hours' && customerData ? (
           <div className="text-center">
-            <div className="bg-[#FFF8F0] rounded-2xl p-6 mb-6">
-              <i className="ri-time-line text-4xl text-[#FFB347] mb-3"></i>
-              <h3 className="font-semibold text-[#2C2C2C] mb-2">
-                No Hours Remaining
-              </h3>
-              <p className="text-[#6B6B6B] text-sm mb-2">
-                You've used all your included hours for this billing period.
-              </p>
-              <p className="text-xs text-[#A8B89F] font-medium mb-4">
-                Current Plan: {customerData.plan.toUpperCase()}
-              </p>
-              <div className="flex justify-center gap-6 text-sm">
-                <div>
-                  <span className="text-2xl font-bold text-[#FFB347]">0</span>
-                  <p className="text-[#6B6B6B]">Hours Left</p>
-                </div>
-                <div>
-                  <span className="text-2xl font-bold text-[#6B6B6B]">{customerData.usedHours}</span>
-                  <p className="text-[#6B6B6B]">Hours Used</p>
-                </div>
-              </div>
-            </div>
+            <p className="text-[#6B6B6B] text-sm mb-6">
+              Welcome back, {customerData.customerName || 'Member'}. You've used all your included hours this period.
+            </p>
 
-            {/* Info about overage */}
-            <div className="bg-[#E8F4E8] rounded-xl p-4 mb-4">
-              <p className="text-sm text-[#2C2C2C]">
-                <i className="ri-information-line mr-2 text-[#A8B89F]"></i>
-                You can still schedule meetings. Additional hours will be billed at the overage rate.
-              </p>
-            </div>
-
-            {/* Schedule with overage */}
             <button
               onClick={openCalendly}
               className="w-full px-8 py-4 bg-[#A8B89F] text-white text-lg font-semibold rounded-full hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer"
             >
               <i className="ri-calendar-line mr-2"></i>
-              Schedule Anyway (Overage Applies)
+              Schedule Meeting
             </button>
+
+            <p className="mt-3 text-xs text-[#BBBBBB] flex items-center justify-center gap-1">
+              <span>Overage rates may apply.</span>
+              <span className="relative inline-flex items-center justify-center w-4 h-4">
+                <button
+                  type="button"
+                  onMouseEnter={() => setShowOverageTooltip(true)}
+                  onMouseLeave={() => setShowOverageTooltip(false)}
+                  onFocus={() => setShowOverageTooltip(true)}
+                  onBlur={() => setShowOverageTooltip(false)}
+                  className="w-4 h-4 flex items-center justify-center text-[#BBBBBB] hover:text-[#9B9B9B] transition-colors cursor-pointer"
+                  aria-label="Overage rate info"
+                >
+                  <i className="ri-information-line text-sm"></i>
+                </button>
+                {showOverageTooltip && (
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 bg-[#2C2C2C] text-white text-xs rounded-xl px-3 py-2.5 shadow-lg z-10 pointer-events-none">
+                    <p className="leading-relaxed">
+                      Additional hours beyond your plan are billed at{' '}
+                      <strong>
+                        {customerData?.plan?.toLowerCase() === 'pro'
+                          ? '$28/hour'
+                          : customerData?.plan?.toLowerCase() === 'plus'
+                          ? '$32/hour'
+                          : '$35/hour'}
+                      </strong>. You'll be notified before any charges apply.
+                    </p>
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-[#2C2C2C]"></div>
+                  </div>
+                )}
+              </span>
+              <a href="mailto:support@mycarepa.com" className="underline hover:text-[#9B9B9B] transition-colors ml-1">
+                Questions? Contact us.
+              </a>
+            </p>
 
             <button
               onClick={clearSession}
-              className="mt-4 block w-full text-sm text-[#6B6B6B] hover:text-[#2C2C2C] transition-colors"
+              className="mt-5 text-sm text-[#BBBBBB] hover:text-[#6B6B6B] transition-colors"
             >
               Not {customerData.customerName || email}? Click here
             </button>
