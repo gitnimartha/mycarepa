@@ -794,7 +794,7 @@ app.post('/api/assistant/report-usage', async (req, res) => {
       event_name: process.env.MYCARE_METER_EVENT_NAME || 'assistant_hours_used',
       payload: {
         stripe_customer_id: customerId,
-        hours: hoursNum.toString(),
+        value: hoursNum.toString(),
       },
       timestamp: Math.floor(Date.now() / 1000),
     });
