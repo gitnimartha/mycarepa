@@ -1,9 +1,17 @@
 import { useState } from 'react';
 import { API_URL } from '../../../config/api';
 
+// ─── FEATURE TOGGLE ────────────────────────────────────────────────────
+// Set to true to require email and block users with existing subscriptions
+// Set to false to allow multiple subscriptions (original behavior)
+const BLOCK_DUPLICATE_SUBSCRIPTIONS = false;
+// ───────────────────────────────────────────────────────────────────────
+
 export default function Pricing() {
   const [loading, setLoading] = useState<string | null>(null);
   const [loadingMessage, setLoadingMessage] = useState('Connecting...');
+  const [email, setEmail] = useState('');
+  const [emailError, setEmailError] = useState<string | null>(null);
   const [errorModal, setErrorModal] = useState<{
     show: boolean;
     currentPlan: string;
@@ -11,6 +19,42 @@ export default function Pricing() {
   } | null>(null);
 
   const handleCheckout = async (planId: string) => {
+    setEmailError(null);
+
+    // If duplicate blocking is enabled, validate email and check subscription
+    if (BLOCK_DUPLICATE_SUBSCRIPTIONS) {
+      if (!email || !email.includes('@')) {
+        setEmailError('Please enter a valid email address');
+        return;
+      }
+
+      setLoading(planId);
+      setLoadingMessage('Checking subscription...');
+
+      try {
+        // Check if email already has an active subscription
+        const checkResponse = await fetch(`${API_URL}/api/check-subscription`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: email.toLowerCase().trim() }),
+        });
+        const checkData = await checkResponse.json();
+
+        if (checkData.hasSubscription) {
+          setErrorModal({
+            show: true,
+            currentPlan: checkData.plan,
+            message: `You already have an active ${checkData.plan.toUpperCase()} subscription.`,
+          });
+          setLoading(null);
+          return;
+        }
+      } catch (error) {
+        console.error('Subscription check error:', error);
+        // Continue to checkout even if check fails
+      }
+    }
+
     setLoading(planId);
     setLoadingMessage('Connecting...');
 
@@ -23,7 +67,11 @@ export default function Pricing() {
       const response = await fetch(`${API_URL}/api/create-checkout-session`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan: planId, billingCycle: 'monthly' }),
+        body: JSON.stringify({
+          plan: planId,
+          billingCycle: 'monthly',
+          ...(BLOCK_DUPLICATE_SUBSCRIPTIONS && email ? { email: email.toLowerCase().trim() } : {})
+        }),
       });
       const data = await response.json();
 
@@ -197,7 +245,7 @@ export default function Pricing() {
                   </div>
                   <div className="text-[#6B6B6B]">hours/month</div>
                 </div>
-                <ul className="space-y-3 mb-8">
+                <ul className="space-y-3 mb-6">
                   {plan.features.map((feature, idx) => (
                     <li key={idx} className="flex items-start gap-3">
                       <i className="ri-checkbox-circle-fill text-[#A8B89F] text-lg mt-0.5 flex-shrink-0"></i>
@@ -205,6 +253,26 @@ export default function Pricing() {
                     </li>
                   ))}
                 </ul>
+                {/* Email input - only shown when duplicate blocking is enabled */}
+                {BLOCK_DUPLICATE_SUBSCRIPTIONS && (
+                  <div className="mb-4">
+                    <input
+                      type="email"
+                      placeholder="Enter your email"
+                      value={email}
+                      onChange={(e) => {
+                        setEmail(e.target.value);
+                        setEmailError(null);
+                      }}
+                      className={`w-full px-4 py-3 border-2 ${
+                        emailError ? 'border-red-300' : 'border-gray-200'
+                      } rounded-xl focus:border-[#A8B89F] focus:outline-none transition-colors text-sm`}
+                    />
+                    {emailError && (
+                      <p className="text-red-500 text-xs mt-1">{emailError}</p>
+                    )}
+                  </div>
+                )}
                 <button
                   onClick={() => handleCheckout(plan.id)}
                   disabled={loading !== null}

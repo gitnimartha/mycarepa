@@ -436,6 +436,39 @@ app.post('/api/webhook', express.raw({ type: 'application/json' }), async (req, 
   res.json({ received: true });
 });
 
+// Check if email has active subscription (for duplicate subscription blocking)
+app.post('/api/check-subscription', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+    const subscriptions = await getAllSubscriptionsForEmail(normalizedEmail);
+
+    if (subscriptions.length > 0) {
+      // Return info about the first active subscription
+      const firstSub = subscriptions[0];
+      return res.json({
+        hasSubscription: true,
+        plan: firstSub.plan,
+        email: normalizedEmail,
+        subscriptionCount: subscriptions.length,
+      });
+    }
+
+    return res.json({
+      hasSubscription: false,
+      email: normalizedEmail,
+    });
+  } catch (error) {
+    console.error('Error checking subscription:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Send verification code to email
 app.post('/api/send-verification-code', async (req, res) => {
   try {
