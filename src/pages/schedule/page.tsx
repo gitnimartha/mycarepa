@@ -86,7 +86,8 @@ export default function SchedulePage() {
       setCustomerData(data);
       setSelectedSubIndex(0);
       setIsAutoVerifying(false);
-      if (data.canSchedule) {
+      // Show 'no-hours' view when remaining hours <= 0 (for overage warning)
+      if (data.remainingHours > 0) {
         setStatus('verified');
       } else {
         setStatus('no-hours');
@@ -107,13 +108,13 @@ export default function SchedulePage() {
     setStatus('idle');
   };
 
-  // Update status when switching between subscriptions with different canSchedule values
+  // Update status when switching between subscriptions with different hour balances
   useEffect(() => {
     if (customerData && (status === 'verified' || status === 'no-hours')) {
       const subs = customerData.subscriptions || [];
       const selectedSub = subs[selectedSubIndex] || customerData;
-      const canSchedule = selectedSub.canSchedule ?? customerData.canSchedule;
-      setStatus(canSchedule ? 'verified' : 'no-hours');
+      const remainingHours = selectedSub.remainingHours ?? customerData.remainingHours;
+      setStatus(remainingHours > 0 ? 'verified' : 'no-hours');
     }
   }, [selectedSubIndex, customerData]);
 
@@ -169,7 +170,8 @@ export default function SchedulePage() {
 
       setCustomerData(data);
       setSelectedSubIndex(0);
-      if (data.canSchedule) {
+      // Show 'no-hours' view when remaining hours <= 0 (for overage warning)
+      if (data.remainingHours > 0) {
         setStatus('verified');
       } else {
         setStatus('no-hours');
