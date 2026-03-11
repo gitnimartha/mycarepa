@@ -31,7 +31,20 @@ export default function AssistantDashboardPage() {
     remainingHours?: number;
     periodStartDate?: string;
     periodEndDate?: string;
+    subscriptions?: Array<{
+      subscriptionId: string;
+      customerId: string;
+      customerName: string;
+      plan: string;
+      includedHours: number;
+      usedHours: number;
+      remainingHours: number;
+      periodStartDate: string;
+      periodEndDate: string;
+      hasSubscription: boolean;
+    }>;
   } | null>(null);
+  const [selectedSubIndex, setSelectedSubIndex] = useState(0);
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [message, setMessage] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -118,6 +131,7 @@ export default function AssistantDashboardPage() {
     setIsLoggedIn(false);
     setPassword('');
     setCustomer(null);
+    setSelectedSubIndex(0);
     setSearchQuery('');
     setSearchResults([]);
     localStorage.removeItem('assistant_session');
@@ -128,6 +142,7 @@ export default function AssistantDashboardPage() {
     setSearchQuery(selectedCustomer.email);
     setStatus('loading');
     setMessage('');
+    setSelectedSubIndex(0);
     try {
       const response = await fetch(`${API_URL}/api/assistant/lookup`, {
         method: 'POST',
@@ -151,13 +166,30 @@ export default function AssistantDashboardPage() {
   const handleReportUsage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!customer) return;
+    const subs = customer.subscriptions || [];
+    const selectedSub = subs[selectedSubIndex];
+    const customerId = selectedSub?.customerId || customer.customerId;
+
     const hoursToAdd = parseFloat(hours);
-    const previousCustomer = { ...customer };
-    setCustomer({
-      ...customer,
-      usedHours: (customer.usedHours || 0) + hoursToAdd,
-      remainingHours: Math.max(0, (customer.remainingHours || 0) - hoursToAdd),
-    });
+    const previousCustomer = { ...customer, subscriptions: customer.subscriptions ? [...customer.subscriptions] : undefined };
+
+    // Optimistic update
+    if (customer.subscriptions && customer.subscriptions[selectedSubIndex]) {
+      const updatedSubs = [...customer.subscriptions];
+      updatedSubs[selectedSubIndex] = {
+        ...updatedSubs[selectedSubIndex],
+        usedHours: updatedSubs[selectedSubIndex].usedHours + hoursToAdd,
+        remainingHours: Math.max(0, updatedSubs[selectedSubIndex].remainingHours - hoursToAdd),
+      };
+      setCustomer({ ...customer, subscriptions: updatedSubs });
+    } else {
+      setCustomer({
+        ...customer,
+        usedHours: (customer.usedHours || 0) + hoursToAdd,
+        remainingHours: Math.max(0, (customer.remainingHours || 0) - hoursToAdd),
+      });
+    }
+
     setMessage(`Successfully logged ${hours} hour${parseFloat(hours) !== 1 ? 's' : ''}!`);
     setStatus('success');
     setHours('');
@@ -166,7 +198,7 @@ export default function AssistantDashboardPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          customerId: customer.customerId,
+          customerId,
           hours: hoursToAdd,
           password,
           inputtedBy,
@@ -185,8 +217,13 @@ export default function AssistantDashboardPage() {
     }
   };
 
-  const usagePercent = customer?.includedHours
-    ? Math.min(100, Math.round(((customer.usedHours || 0) / customer.includedHours) * 100))
+  // Get selected subscription data
+  const subs = customer?.subscriptions || [];
+  const selectedSub = subs[selectedSubIndex];
+  const displayData = selectedSub || customer;
+
+  const usagePercent = displayData?.includedHours
+    ? Math.min(100, Math.round(((displayData.usedHours || 0) / displayData.includedHours) * 100))
     : 0;
 
   const planColor = (plan?: string | null) => {
@@ -395,28 +432,59 @@ export default function AssistantDashboardPage() {
                       <h3 className="font-semibold text-[#2C2C2C] truncate">{customer.customerName || 'No Name'}</h3>
                       <p className="text-sm text-[#6B6B6B] truncate">{customer.email}</p>
                     </div>
-                    {customer.hasSubscription && customer.plan && (
-                      <span className={`text-xs px-3 py-1 rounded-full font-semibold flex-shrink-0 ${planColor(customer.plan)}`}>
-                        {customer.plan.toUpperCase()}
-                      </span>
-                    )}
                   </div>
+
+                  {/* Subscription Tabs */}
+                  {customer.subscriptions && customer.subscriptions.length > 1 && (
+                    <div className="px-6 pt-4 pb-2 border-b border-gray-50">
+                      <div className="flex gap-2 flex-wrap">
+                        {customer.subscriptions.map((sub, idx) => {
+                          const samePlanBefore = customer.subscriptions!.slice(0, idx).filter(s => s.plan.toUpperCase() === sub.plan.toUpperCase()).length;
+                          const samePlanTotal = customer.subscriptions!.filter(s => s.plan.toUpperCase() === sub.plan.toUpperCase()).length;
+                          const tabLabel = samePlanTotal > 1
+                            ? `${sub.plan.toUpperCase()} (${samePlanBefore + 1})`
+                            : sub.plan.toUpperCase();
+                          return (
+                            <button
+                              key={sub.subscriptionId}
+                              type="button"
+                              onClick={() => setSelectedSubIndex(idx)}
+                              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                                selectedSubIndex === idx
+                                  ? 'bg-[#A8B89F] text-white'
+                                  : 'bg-gray-100 text-[#6B6B6B] hover:bg-gray-200'
+                              }`}
+                            >
+                              {tabLabel}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
 
                   {customer.hasSubscription ? (
                     <>
+                      {/* Plan Badge */}
+                      <div className="px-6 pt-4">
+                        <span className={`text-xs px-3 py-1 rounded-full font-semibold ${planColor(displayData?.plan)}`}>
+                          {displayData?.plan?.toUpperCase()}
+                        </span>
+                      </div>
+
                       {/* Hours Stats */}
                       <div className="px-6 py-5 space-y-4">
                         <div className="grid grid-cols-3 gap-3">
                           <div className="bg-[#F7F5F2] rounded-xl p-4 text-center">
-                            <p className="text-2xl font-bold text-[#A8B89F]">{customer.remainingHours ?? '—'}</p>
+                            <p className="text-2xl font-bold text-[#A8B89F]">{displayData?.remainingHours ?? '—'}</p>
                             <p className="text-xs text-[#6B6B6B] mt-0.5 font-medium">Remaining</p>
                           </div>
                           <div className="bg-[#F7F5F2] rounded-xl p-4 text-center">
-                            <p className="text-2xl font-bold text-[#2C2C2C]">{customer.usedHours ?? '—'}</p>
+                            <p className="text-2xl font-bold text-[#2C2C2C]">{displayData?.usedHours ?? '—'}</p>
                             <p className="text-xs text-[#6B6B6B] mt-0.5 font-medium">Used</p>
                           </div>
                           <div className="bg-[#F7F5F2] rounded-xl p-4 text-center">
-                            <p className="text-2xl font-bold text-[#2C2C2C]">{customer.includedHours ?? '—'}</p>
+                            <p className="text-2xl font-bold text-[#2C2C2C]">{displayData?.includedHours ?? '—'}</p>
                             <p className="text-xs text-[#6B6B6B] mt-0.5 font-medium">Included</p>
                           </div>
                         </div>
@@ -436,14 +504,14 @@ export default function AssistantDashboardPage() {
                         </div>
 
                         {/* Period */}
-                        {(customer.periodStartDate || customer.periodEndDate) && (
+                        {(displayData?.periodStartDate || displayData?.periodEndDate) && (
                           <div className="flex items-center gap-2 text-xs text-[#6B6B6B] bg-[#F7F5F2] rounded-xl px-4 py-3">
                             <i className="ri-calendar-line text-[#A8B89F]"></i>
                             <span>
                               Billing period:&nbsp;
-                              <strong className="text-[#2C2C2C]">{customer.periodStartDate}</strong>
+                              <strong className="text-[#2C2C2C]">{displayData?.periodStartDate}</strong>
                               &nbsp;→&nbsp;
-                              <strong className="text-[#2C2C2C]">{customer.periodEndDate}</strong>
+                              <strong className="text-[#2C2C2C]">{displayData?.periodEndDate}</strong>
                             </span>
                           </div>
                         )}

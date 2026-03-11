@@ -8,6 +8,7 @@ import 'dotenv/config';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+// Build timestamp: 2026-03-11T02:56:00Z - force rebuild v2
 
 const app = express();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -76,11 +77,90 @@ async function findCustomerByEmail(email) {
   return null;
 }
 
+// Helper: Find ALL customers by email (using Stripe Search API)
+async function findAllCustomersByEmail(email) {
+  const normalizedEmail = email.toLowerCase().trim();
+
+  // Use Stripe Search API - much faster than iterating
+  const searchResult = await stripe.customers.search({
+    query: `email:"${normalizedEmail}"`,
+    limit: 100,
+  });
+
+  return searchResult.data;
+}
+
+// Helper: Get all active subscriptions for an email
+async function getAllSubscriptionsForEmail(email) {
+  const customers = await findAllCustomersByEmail(email);
+  const allSubscriptions = [];
+
+  for (const customer of customers) {
+    const subscriptions = await stripe.subscriptions.list({
+      customer: customer.id,
+      status: 'active',
+      limit: 10,
+    });
+
+    for (const subscription of subscriptions.data) {
+      const plan = subscription.metadata.plan || 'starter';
+      const includedHours = parseInt(subscription.metadata.included_hours || '5');
+
+      const periodStart = subscription.items?.data?.[0]?.current_period_start
+        || subscription.billing_cycle_anchor
+        || subscription.start_date;
+      const periodEnd = subscription.items?.data?.[0]?.current_period_end;
+
+      let usedHours = 0;
+      try {
+        if (process.env.MYCARE_METER_ID && periodStart) {
+          const meterSummary = await stripe.billing.meters.listEventSummaries(
+            process.env.MYCARE_METER_ID,
+            {
+              customer: customer.id,
+              start_time: periodStart,
+              end_time: Math.floor(Date.now() / 1000),
+            }
+          );
+          usedHours = meterSummary.data.reduce((sum, event) => sum + parseFloat(event.aggregated_value || 0), 0);
+        }
+      } catch (meterError) {
+        console.log('Meter lookup error:', meterError.message);
+      }
+
+      const remainingHours = Math.max(0, includedHours - usedHours);
+
+      allSubscriptions.push({
+        subscriptionId: subscription.id,
+        customerId: customer.id,
+        customerName: customer.name || '',
+        email: customer.email,
+        plan,
+        includedHours,
+        usedHours: Math.round(usedHours * 100) / 100,
+        remainingHours: Math.round(remainingHours * 100) / 100,
+        canSchedule: remainingHours > 0 || plan.toLowerCase() !== 'trial',
+        periodStart,
+        periodEnd,
+        periodStartDate: periodStart ? new Date(periodStart * 1000).toLocaleDateString() : null,
+        periodEndDate: periodEnd ? new Date(periodEnd * 1000).toLocaleDateString() : null,
+        created: subscription.created,
+      });
+    }
+  }
+
+  // Sort by creation date (oldest first)
+  allSubscriptions.sort((a, b) => a.created - b.created);
+
+  return allSubscriptions;
+}
+
 // Middleware - CORS configuration for Readdy frontend
 const allowedOrigins = [
   'https://mycarepersonalassistant.com',
   'https://www.mycarepersonalassistant.com',
   'https://mycarepa-production.up.railway.app',
+  'https://mycarepa-production-2432.up.railway.app',
   'http://localhost:5173',
   'http://localhost:3000',
 ];
@@ -96,6 +176,8 @@ app.use(cors({
     return callback(null, true);
   },
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 app.use(express.json());
 
@@ -546,14 +628,14 @@ app.post('/api/verify-customer', async (req, res) => {
       });
     }
 
-    // Get active subscription
-    const subscriptions = await stripe.subscriptions.list({
-      customer: customer.id,
-      status: 'active',
-      limit: 1,
-    });
+    // Get ALL active subscriptions for this email
+    const allCustomers = await findAllCustomersByEmail(email);
+    console.log(`[DEBUG] Found ${allCustomers.length} customers for email ${email}:`, allCustomers.map(c => ({ id: c.id, name: c.name, email: c.email })));
 
-    if (subscriptions.data.length === 0) {
+    const allSubscriptions = await getAllSubscriptionsForEmail(email);
+    console.log(`[DEBUG] Found ${allSubscriptions.length} subscriptions:`, allSubscriptions.map(s => ({ id: s.subscriptionId, name: s.customerName, plan: s.plan })));
+
+    if (allSubscriptions.length === 0) {
       return res.status(404).json({
         error: 'No active subscription',
         canSchedule: false,
@@ -561,50 +643,25 @@ app.post('/api/verify-customer', async (req, res) => {
       });
     }
 
-    const subscription = subscriptions.data[0];
-    const plan = subscription.metadata.plan || 'starter';
-    const includedHours = parseInt(subscription.metadata.included_hours || '5');
-
-    // Get current billing period - check subscription items first, then fallback
-    const periodStart = subscription.items?.data?.[0]?.current_period_start
-      || subscription.billing_cycle_anchor
-      || subscription.start_date;
-    const periodEnd = subscription.items?.data?.[0]?.current_period_end;
-
-    // Get usage for current billing period
-    let usedHours = 0;
-    try {
-      if (process.env.MYCARE_METER_ID && periodStart) {
-        const meterSummary = await stripe.billing.meters.listEventSummaries(
-          process.env.MYCARE_METER_ID,
-          {
-            customer: customer.id,
-            start_time: periodStart,
-            end_time: Math.floor(Date.now() / 1000),
-          }
-        );
-        usedHours = meterSummary.data.reduce((sum, event) => sum + parseFloat(event.aggregated_value || 0), 0);
-      }
-    } catch (meterError) {
-      console.log('Meter lookup skipped:', meterError.message);
-    }
-
-    const remainingHours = Math.max(0, includedHours - usedHours);
-    const canSchedule = remainingHours > 0;
+    // First subscription for backwards compatibility
+    const firstSub = allSubscriptions[0];
 
     res.json({
-      canSchedule,
-      customerId: customer.id,
-      customerName: customer.name || '',
-      email: customer.email,
-      plan,
-      includedHours,
-      usedHours,
-      remainingHours,
-      currentPeriodEnd: periodEnd,
-      message: canSchedule
-        ? `You have ${remainingHours} hours remaining this period.`
-        : 'You have used all your hours this period. Please upgrade your plan to continue.'
+      // Array of all subscriptions
+      subscriptions: allSubscriptions,
+      // Backwards compatibility - first subscription at top level
+      canSchedule: firstSub.canSchedule,
+      customerId: firstSub.customerId,
+      customerName: firstSub.customerName,
+      email: firstSub.email,
+      plan: firstSub.plan,
+      includedHours: firstSub.includedHours,
+      usedHours: firstSub.usedHours,
+      remainingHours: firstSub.remainingHours,
+      currentPeriodEnd: firstSub.periodEnd,
+      message: firstSub.canSchedule
+        ? `You have ${firstSub.remainingHours} hours remaining this period.`
+        : 'You have used all your hours this period.'
     });
   } catch (error) {
     console.error('Error verifying customer:', error);
@@ -697,73 +754,41 @@ app.post('/api/assistant/lookup', async (req, res) => {
       return res.status(400).json({ error: 'Email is required' });
     }
 
-    // Find customer by email (case-insensitive)
-    const customer = await findCustomerByEmail(email);
+    // Get ALL subscriptions for this email
+    const allSubscriptions = await getAllSubscriptionsForEmail(email);
 
-    if (!customer) {
+    if (allSubscriptions.length === 0) {
+      const customer = await findCustomerByEmail(email);
+      if (customer) {
+        return res.json({
+          customerId: customer.id,
+          customerName: customer.name || '',
+          email: customer.email,
+          hasSubscription: false,
+          subscriptions: [],
+          message: 'No active subscription'
+        });
+      }
       return res.status(404).json({ error: 'Customer not found' });
     }
 
-    // Get subscription
-    const subscriptions = await stripe.subscriptions.list({
-      customer: customer.id,
-      status: 'active',
-      limit: 1,
-    });
-
-    if (subscriptions.data.length === 0) {
-      return res.json({
-        customerId: customer.id,
-        customerName: customer.name || '',
-        email: customer.email,
-        hasSubscription: false,
-        message: 'No active subscription'
-      });
-    }
-
-    const subscription = subscriptions.data[0];
-    const plan = subscription.metadata.plan || 'starter';
-    const includedHours = parseInt(subscription.metadata.included_hours || '5');
-
-    // Get billing period
-    const periodStart = subscription.items?.data?.[0]?.current_period_start
-      || subscription.billing_cycle_anchor
-      || subscription.start_date;
-    const periodEnd = subscription.items?.data?.[0]?.current_period_end;
-
-    // Get usage
-    let usedHours = 0;
-    try {
-      if (process.env.MYCARE_METER_ID && periodStart) {
-        const meterSummary = await stripe.billing.meters.listEventSummaries(
-          process.env.MYCARE_METER_ID,
-          {
-            customer: customer.id,
-            start_time: periodStart,
-            end_time: Math.floor(Date.now() / 1000),
-          }
-        );
-        usedHours = meterSummary.data.reduce((sum, event) => sum + parseFloat(event.aggregated_value || 0), 0);
-      }
-    } catch (meterError) {
-      console.log('Meter lookup error:', meterError.message);
-    }
-
-    const remainingHours = Math.max(0, includedHours - usedHours);
+    const firstSub = allSubscriptions[0];
 
     res.json({
-      customerId: customer.id,
-      customerName: customer.name || '',
-      email: customer.email,
+      subscriptions: allSubscriptions.map(sub => ({ ...sub, hasSubscription: true })),
+      // Backwards compatibility
+      customerId: firstSub.customerId,
+      customerName: firstSub.customerName,
+      email: firstSub.email,
       hasSubscription: true,
-      plan,
-      includedHours,
-      usedHours: Math.round(usedHours * 100) / 100,
-      remainingHours: Math.round(remainingHours * 100) / 100,
-      periodStart,
-      periodEnd,
-      periodStartDate: new Date(periodStart * 1000).toLocaleDateString(),
-      periodEndDate: new Date(periodEnd * 1000).toLocaleDateString(),
+      plan: firstSub.plan,
+      includedHours: firstSub.includedHours,
+      usedHours: firstSub.usedHours,
+      remainingHours: firstSub.remainingHours,
+      periodStart: firstSub.periodStart,
+      periodEnd: firstSub.periodEnd,
+      periodStartDate: firstSub.periodStartDate,
+      periodEndDate: firstSub.periodEndDate,
     });
   } catch (error) {
     console.error('Error looking up customer:', error);

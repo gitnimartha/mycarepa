@@ -28,7 +28,18 @@ export default function SchedulePage() {
     includedHours: number;
     usedHours: number;
     message: string;
+    subscriptions?: Array<{
+      subscriptionId: string;
+      customerId: string;
+      customerName: string;
+      plan: string;
+      remainingHours: number;
+      includedHours: number;
+      usedHours: number;
+      canSchedule: boolean;
+    }>;
   } | null>(null);
+  const [selectedSubIndex, setSelectedSubIndex] = useState(0);
   const [errorMessage, setErrorMessage] = useState('');
   const [tempCode, setTempCode] = useState<string | null>(null);
   const [isAutoVerifying, setIsAutoVerifying] = useState(false);
@@ -73,6 +84,7 @@ export default function SchedulePage() {
       }
 
       setCustomerData(data);
+      setSelectedSubIndex(0);
       setIsAutoVerifying(false);
       if (data.canSchedule) {
         setStatus('verified');
@@ -91,6 +103,7 @@ export default function SchedulePage() {
     setEmail('');
     setCode('');
     setCustomerData(null);
+    setSelectedSubIndex(0);
     setStatus('idle');
   };
 
@@ -145,6 +158,7 @@ export default function SchedulePage() {
       }
 
       setCustomerData(data);
+      setSelectedSubIndex(0);
       if (data.canSchedule) {
         setStatus('verified');
       } else {
@@ -193,7 +207,11 @@ export default function SchedulePage() {
   };
 
   const openCalendly = () => {
-    const calendlyUrl = `${CALENDLY_URL_MEMBERS}?email=${encodeURIComponent(email)}&name=${encodeURIComponent(customerData?.customerName || '')}&utm_content=${encodeURIComponent(customerData?.customerId || '')}`;
+    const subs = customerData?.subscriptions || [];
+    const selectedSub = subs[selectedSubIndex];
+    const customerName = selectedSub?.customerName || customerData?.customerName || '';
+    const customerId = selectedSub?.customerId || customerData?.customerId || '';
+    const calendlyUrl = `${CALENDLY_URL_MEMBERS}?email=${encodeURIComponent(email)}&name=${encodeURIComponent(customerName)}&utm_content=${encodeURIComponent(customerId)}`;
     if (window.Calendly) {
       window.Calendly.initPopupWidget({ url: calendlyUrl });
     } else {
@@ -364,30 +382,62 @@ export default function SchedulePage() {
           </form>
         ) : status === 'verified' && customerData ? (
           <div className="text-center">
-            <div className="bg-[#E8F4E8] rounded-2xl p-6 mb-6">
-              <i className="ri-checkbox-circle-fill text-4xl text-[#A8B89F] mb-3"></i>
-              <h3 className="font-semibold text-[#2C2C2C] mb-2">
-                Welcome back, {customerData.customerName || 'Member'}!
-              </h3>
-              <p className="text-[#6B6B6B] text-sm mb-2">{customerData.message}</p>
-              <p className="text-xs text-[#A8B89F] font-medium mb-4">
-                Current Plan: {customerData.plan.toUpperCase()}
-              </p>
-              <div className="flex justify-center gap-6 text-sm">
-                <div>
-                  <span className="text-2xl font-bold text-[#A8B89F]">{customerData.remainingHours}</span>
-                  <p className="text-[#6B6B6B]">Hours Left</p>
-                </div>
-                <div>
-                  <span className="text-2xl font-bold text-[#6B6B6B]">{customerData.usedHours}</span>
-                  <p className="text-[#6B6B6B]">Hours Used</p>
-                </div>
-                <div>
-                  <span className="text-2xl font-bold text-[#6B6B6B]">{customerData.includedHours}</span>
-                  <p className="text-[#6B6B6B]">Total Hours</p>
-                </div>
+            {/* Subscription Tabs */}
+            {customerData.subscriptions && customerData.subscriptions.length > 1 && (
+              <div className="flex justify-center gap-2 flex-wrap mb-4">
+                {customerData.subscriptions.map((sub, idx) => {
+                  const samePlanBefore = customerData.subscriptions!.slice(0, idx).filter(s => s.plan.toUpperCase() === sub.plan.toUpperCase()).length;
+                  const samePlanTotal = customerData.subscriptions!.filter(s => s.plan.toUpperCase() === sub.plan.toUpperCase()).length;
+                  const tabLabel = samePlanTotal > 1
+                    ? `${sub.plan.toUpperCase()} (${samePlanBefore + 1})`
+                    : sub.plan.toUpperCase();
+                  return (
+                    <button
+                      key={sub.subscriptionId}
+                      type="button"
+                      onClick={() => setSelectedSubIndex(idx)}
+                      className={`px-4 py-2 text-sm font-semibold rounded-full transition-all cursor-pointer ${
+                        selectedSubIndex === idx
+                          ? 'bg-[#A8B89F] text-white'
+                          : 'bg-gray-100 text-[#6B6B6B] hover:bg-gray-200'
+                      }`}
+                    >
+                      {tabLabel}
+                    </button>
+                  );
+                })}
               </div>
-            </div>
+            )}
+            {(() => {
+              const subs = customerData.subscriptions || [];
+              const sub = subs[selectedSubIndex] || customerData;
+              return (
+                <div className="bg-[#E8F4E8] rounded-2xl p-6 mb-6">
+                  <i className="ri-checkbox-circle-fill text-4xl text-[#A8B89F] mb-3"></i>
+                  <h3 className="font-semibold text-[#2C2C2C] mb-2">
+                    Welcome back, {sub.customerName || 'Member'}!
+                  </h3>
+                  <p className="text-[#6B6B6B] text-sm mb-2">You have {sub.remainingHours} hours remaining this period.</p>
+                  <p className="text-xs text-[#A8B89F] font-medium mb-4">
+                    Current Plan: {sub.plan.toUpperCase()}
+                  </p>
+                  <div className="flex justify-center gap-6 text-sm">
+                    <div>
+                      <span className="text-2xl font-bold text-[#A8B89F]">{sub.remainingHours}</span>
+                      <p className="text-[#6B6B6B]">Hours Left</p>
+                    </div>
+                    <div>
+                      <span className="text-2xl font-bold text-[#6B6B6B]">{sub.usedHours}</span>
+                      <p className="text-[#6B6B6B]">Hours Used</p>
+                    </div>
+                    <div>
+                      <span className="text-2xl font-bold text-[#6B6B6B]">{sub.includedHours}</span>
+                      <p className="text-[#6B6B6B]">Total Hours</p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
 
             <button
               onClick={openCalendly}
@@ -406,90 +456,125 @@ export default function SchedulePage() {
           </div>
         ) : status === 'no-hours' && customerData ? (
           <div className="text-center">
-            <p className="text-[#6B6B6B] text-sm mb-6">
-              Welcome back, {customerData.customerName || 'Member'}. You've used all your included hours this period.
-            </p>
-
-            {/* Trial users: Show upgrade prompt instead of scheduling */}
-            {customerData.plan?.toLowerCase() === 'trial' ? (
-              <>
-                <div className="bg-[#FFF8F0] rounded-2xl p-6 mb-6">
-                  <i className="ri-gift-line text-4xl text-[#FFB347] mb-3"></i>
-                  <h3 className="font-semibold text-[#2C2C2C] mb-2">
-                    Trial Hours Used
-                  </h3>
-                  <p className="text-[#6B6B6B] text-sm">
-                    You've used all {customerData.includedHours} trial hours. Upgrade to a paid plan to continue scheduling meetings.
-                  </p>
-                </div>
-
-                <Link
-                  to="/#pricing"
-                  className="inline-block w-full px-8 py-4 bg-[#A8B89F] text-white text-lg font-semibold rounded-full hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer"
-                >
-                  <i className="ri-arrow-up-circle-line mr-2"></i>
-                  Upgrade Your Plan
-                </Link>
-
-                <p className="mt-3 text-xs text-[#BBBBBB]">
-                  <a href="mailto:support@mycarepa.com" className="underline hover:text-[#9B9B9B] transition-colors">
-                    Questions? Contact us.
-                  </a>
-                </p>
-              </>
-            ) : (
-              <>
-                <button
-                  onClick={openCalendly}
-                  className="w-full px-8 py-4 bg-[#A8B89F] text-white text-lg font-semibold rounded-full hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer"
-                >
-                  <i className="ri-calendar-line mr-2"></i>
-                  Schedule Meeting
-                </button>
-
-                <p className="mt-3 text-xs text-[#BBBBBB] flex items-center justify-center gap-1">
-                  <span>Overage rates may apply.</span>
-                  <span className="relative inline-flex items-center justify-center w-4 h-4">
+            {/* Subscription Tabs */}
+            {customerData.subscriptions && customerData.subscriptions.length > 1 && (
+              <div className="flex justify-center gap-2 flex-wrap mb-4">
+                {customerData.subscriptions.map((sub, idx) => {
+                  const samePlanBefore = customerData.subscriptions!.slice(0, idx).filter(s => s.plan.toUpperCase() === sub.plan.toUpperCase()).length;
+                  const samePlanTotal = customerData.subscriptions!.filter(s => s.plan.toUpperCase() === sub.plan.toUpperCase()).length;
+                  const tabLabel = samePlanTotal > 1
+                    ? `${sub.plan.toUpperCase()} (${samePlanBefore + 1})`
+                    : sub.plan.toUpperCase();
+                  return (
                     <button
+                      key={sub.subscriptionId}
                       type="button"
-                      onMouseEnter={() => setShowOverageTooltip(true)}
-                      onMouseLeave={() => setShowOverageTooltip(false)}
-                      onFocus={() => setShowOverageTooltip(true)}
-                      onBlur={() => setShowOverageTooltip(false)}
-                      className="w-4 h-4 flex items-center justify-center text-[#BBBBBB] hover:text-[#9B9B9B] transition-colors cursor-pointer"
-                      aria-label="Overage rate info"
+                      onClick={() => setSelectedSubIndex(idx)}
+                      className={`px-4 py-2 text-sm font-semibold rounded-full transition-all cursor-pointer ${
+                        selectedSubIndex === idx
+                          ? 'bg-[#A8B89F] text-white'
+                          : 'bg-gray-100 text-[#6B6B6B] hover:bg-gray-200'
+                      }`}
                     >
-                      <i className="ri-information-line text-sm"></i>
+                      {tabLabel}
                     </button>
-                    {showOverageTooltip && (
-                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 bg-[#2C2C2C] text-white text-xs rounded-xl px-3 py-2.5 shadow-lg z-10 pointer-events-none">
-                        <p className="leading-relaxed">
-                          Additional hours beyond your plan are billed at{' '}
-                          <strong>
-                            {customerData?.plan?.toLowerCase() === 'pro'
-                              ? '$28/hour'
-                              : customerData?.plan?.toLowerCase() === 'plus'
-                              ? '$32/hour'
-                              : '$35/hour'}
-                          </strong>. You'll be notified before any charges apply.
-                        </p>
-                        <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-[#2C2C2C]"></div>
-                      </div>
-                    )}
-                  </span>
-                  <a href="mailto:support@mycarepa.com" className="underline hover:text-[#9B9B9B] transition-colors ml-1">
-                    Questions? Contact us.
-                  </a>
-                </p>
-              </>
+                  );
+                })}
+              </div>
             )}
+            {(() => {
+              const subs = customerData.subscriptions || [];
+              const sub = subs[selectedSubIndex] || customerData;
+              const isTrial = sub.plan?.toLowerCase() === 'trial';
+              return (
+                <>
+                  <p className="text-[#6B6B6B] text-sm mb-6">
+                    Welcome back, {sub.customerName || 'Member'}. You've used all your included hours this period.
+                  </p>
 
-            <button
-              onClick={clearSession}
-              className="mt-5 text-sm text-[#BBBBBB] hover:text-[#6B6B6B] transition-colors"
-            >
-              Not {customerData.customerName || email}? Click here
-            </button>
+                  {/* Trial users: Show upgrade prompt instead of scheduling */}
+                  {isTrial ? (
+                    <>
+                      <div className="bg-[#FFF8F0] rounded-2xl p-6 mb-6">
+                        <i className="ri-gift-line text-4xl text-[#FFB347] mb-3"></i>
+                        <h3 className="font-semibold text-[#2C2C2C] mb-2">
+                          Trial Hours Used
+                        </h3>
+                        <p className="text-[#6B6B6B] text-sm">
+                          You've used all {sub.includedHours} trial hours. Upgrade to a paid plan to continue scheduling meetings.
+                        </p>
+                      </div>
+
+                      <Link
+                        to="/#pricing"
+                        className="inline-block w-full px-8 py-4 bg-[#A8B89F] text-white text-lg font-semibold rounded-full hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer"
+                      >
+                        <i className="ri-arrow-up-circle-line mr-2"></i>
+                        Upgrade Your Plan
+                      </Link>
+
+                      <p className="mt-3 text-xs text-[#BBBBBB]">
+                        <a href="mailto:support@mycarepa.com" className="underline hover:text-[#9B9B9B] transition-colors">
+                          Questions? Contact us.
+                        </a>
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        onClick={openCalendly}
+                        className="w-full px-8 py-4 bg-[#A8B89F] text-white text-lg font-semibold rounded-full hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer"
+                      >
+                        <i className="ri-calendar-line mr-2"></i>
+                        Schedule Meeting
+                      </button>
+
+                      <p className="mt-3 text-xs text-[#BBBBBB] flex items-center justify-center gap-1">
+                        <span>Overage rates may apply.</span>
+                        <span className="relative inline-flex items-center justify-center w-4 h-4">
+                          <button
+                            type="button"
+                            onMouseEnter={() => setShowOverageTooltip(true)}
+                            onMouseLeave={() => setShowOverageTooltip(false)}
+                            onFocus={() => setShowOverageTooltip(true)}
+                            onBlur={() => setShowOverageTooltip(false)}
+                            className="w-4 h-4 flex items-center justify-center text-[#BBBBBB] hover:text-[#9B9B9B] transition-colors cursor-pointer"
+                            aria-label="Overage rate info"
+                          >
+                            <i className="ri-information-line text-sm"></i>
+                          </button>
+                          {showOverageTooltip && (
+                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 bg-[#2C2C2C] text-white text-xs rounded-xl px-3 py-2.5 shadow-lg z-10 pointer-events-none">
+                              <p className="leading-relaxed">
+                                Additional hours beyond your plan are billed at{' '}
+                                <strong>
+                                  {sub.plan?.toLowerCase() === 'pro'
+                                    ? '$28/hour'
+                                    : sub.plan?.toLowerCase() === 'plus'
+                                    ? '$32/hour'
+                                    : '$35/hour'}
+                                </strong>. You'll be notified before any charges apply.
+                              </p>
+                              <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-[#2C2C2C]"></div>
+                            </div>
+                          )}
+                        </span>
+                        <a href="mailto:support@mycarepa.com" className="underline hover:text-[#9B9B9B] transition-colors ml-1">
+                          Questions? Contact us.
+                        </a>
+                      </p>
+                    </>
+                  )}
+
+                  <button
+                    onClick={clearSession}
+                    className="mt-5 text-sm text-[#BBBBBB] hover:text-[#6B6B6B] transition-colors"
+                  >
+                    Not {sub.customerName || email}? Click here
+                  </button>
+                </>
+              );
+            })()}
           </div>
         ) : null}
 
