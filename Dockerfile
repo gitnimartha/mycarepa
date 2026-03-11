@@ -75,13 +75,13 @@ RUN echo ${LAST_COMMIT_HASH:-"unknown"} > ./dist/commit.txt
 
 # Environment variables
 ENV NODE_ENV=production
-ENV PORT=3001
+ENV PORT=8080
 ENV TZ=America/Los_Angeles
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3001/api/prices || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://localhost:8080/api/prices || exit 1
 
-EXPOSE 3001
+EXPOSE 8080
 
 ENTRYPOINT ["sh", "-c", "./docker-entrypoint.sh"]

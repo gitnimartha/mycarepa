@@ -29,65 +29,30 @@ setInterval(() => {
   }
 }, 5 * 60 * 1000);
 
-// Helper: Find customer by email (case-insensitive)
-// Stripe's customers.list email filter is case-sensitive, so we need this workaround
+// Helper: Find customer by email
 async function findCustomerByEmail(email) {
   const normalizedEmail = email.toLowerCase().trim();
 
-  // First try exact match (faster)
-  const exactMatch = await stripe.customers.list({
+  const result = await stripe.customers.list({
     email: normalizedEmail,
     limit: 1,
   });
 
-  if (exactMatch.data.length > 0) {
-    return exactMatch.data[0];
-  }
-
-  // If not found, search recent customers for case-insensitive match
-  // This handles emails stored with different casing
-  let hasMore = true;
-  let startingAfter = undefined;
-
-  while (hasMore) {
-    const customers = await stripe.customers.list({
-      limit: 100,
-      starting_after: startingAfter,
-    });
-
-    const match = customers.data.find(
-      c => c.email && c.email.toLowerCase() === normalizedEmail
-    );
-
-    if (match) {
-      return match;
-    }
-
-    hasMore = customers.has_more;
-    if (customers.data.length > 0) {
-      startingAfter = customers.data[customers.data.length - 1].id;
-    }
-
-    // Safety limit: don't search more than 500 customers
-    if (startingAfter && customers.data.length >= 500) {
-      break;
-    }
-  }
-
-  return null;
+  return result.data.length > 0 ? result.data[0] : null;
 }
 
-// Helper: Find ALL customers by email (using Stripe Search API)
+// Helper: Find ALL customers by email
 async function findAllCustomersByEmail(email) {
   const normalizedEmail = email.toLowerCase().trim();
 
-  // Use Stripe Search API - much faster than iterating
-  const searchResult = await stripe.customers.search({
-    query: `email:"${normalizedEmail}"`,
+  // Simple list - Stripe returns all customers with exact email match
+  const result = await stripe.customers.list({
+    email: normalizedEmail,
     limit: 100,
   });
 
-  return searchResult.data;
+  console.log(`[findAllCustomersByEmail] Found ${result.data.length} customers for ${normalizedEmail}`);
+  return result.data;
 }
 
 // Helper: Get all active subscriptions for an email
@@ -180,6 +145,12 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 app.use(express.json());
+
+// Log all requests
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+  next();
+});
 
 // Serve static files in production
 if (process.env.NODE_ENV === 'production') {
@@ -469,13 +440,16 @@ app.post('/api/webhook', express.raw({ type: 'application/json' }), async (req, 
 app.post('/api/send-verification-code', async (req, res) => {
   try {
     const { email } = req.body;
+    console.log('[send-code] Request received for:', email);
 
     if (!email) {
       return res.status(400).json({ error: 'Email is required' });
     }
 
     // Find customer by email (case-insensitive)
+    console.log('[send-code] Looking up customer...');
     const customer = await findCustomerByEmail(email);
+    console.log('[send-code] Customer found:', customer?.id);
 
     if (!customer) {
       return res.status(404).json({

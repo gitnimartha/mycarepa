@@ -107,6 +107,16 @@ export default function SchedulePage() {
     setStatus('idle');
   };
 
+  // Update status when switching between subscriptions with different canSchedule values
+  useEffect(() => {
+    if (customerData && (status === 'verified' || status === 'no-hours')) {
+      const subs = customerData.subscriptions || [];
+      const selectedSub = subs[selectedSubIndex] || customerData;
+      const canSchedule = selectedSub.canSchedule ?? customerData.canSchedule;
+      setStatus(canSchedule ? 'verified' : 'no-hours');
+    }
+  }, [selectedSubIndex, customerData]);
+
   const handleSendCode = async (e: React.FormEvent) => {
     e.preventDefault();
     setStatus('sending-code');
@@ -412,47 +422,49 @@ export default function SchedulePage() {
               const subs = customerData.subscriptions || [];
               const sub = subs[selectedSubIndex] || customerData;
               return (
-                <div className="bg-[#E8F4E8] rounded-2xl p-6 mb-6">
-                  <i className="ri-checkbox-circle-fill text-4xl text-[#A8B89F] mb-3"></i>
-                  <h3 className="font-semibold text-[#2C2C2C] mb-2">
-                    Welcome back, {sub.customerName || 'Member'}!
-                  </h3>
-                  <p className="text-[#6B6B6B] text-sm mb-2">You have {sub.remainingHours} hours remaining this period.</p>
-                  <p className="text-xs text-[#A8B89F] font-medium mb-4">
-                    Current Plan: {sub.plan.toUpperCase()}
-                  </p>
-                  <div className="flex justify-center gap-6 text-sm">
-                    <div>
-                      <span className="text-2xl font-bold text-[#A8B89F]">{sub.remainingHours}</span>
-                      <p className="text-[#6B6B6B]">Hours Left</p>
-                    </div>
-                    <div>
-                      <span className="text-2xl font-bold text-[#6B6B6B]">{sub.usedHours}</span>
-                      <p className="text-[#6B6B6B]">Hours Used</p>
-                    </div>
-                    <div>
-                      <span className="text-2xl font-bold text-[#6B6B6B]">{sub.includedHours}</span>
-                      <p className="text-[#6B6B6B]">Total Hours</p>
+                <>
+                  <div className="bg-[#E8F4E8] rounded-2xl p-6 mb-6">
+                    <i className="ri-checkbox-circle-fill text-4xl text-[#A8B89F] mb-3"></i>
+                    <h3 className="font-semibold text-[#2C2C2C] mb-2">
+                      Welcome back, {sub.customerName || 'Member'}!
+                    </h3>
+                    <p className="text-[#6B6B6B] text-sm mb-2">You have {sub.remainingHours} hours remaining this period.</p>
+                    <p className="text-xs text-[#A8B89F] font-medium mb-4">
+                      Current Plan: {sub.plan.toUpperCase()}
+                    </p>
+                    <div className="flex justify-center gap-6 text-sm">
+                      <div>
+                        <span className="text-2xl font-bold text-[#A8B89F]">{sub.remainingHours}</span>
+                        <p className="text-[#6B6B6B]">Hours Left</p>
+                      </div>
+                      <div>
+                        <span className="text-2xl font-bold text-[#6B6B6B]">{sub.usedHours}</span>
+                        <p className="text-[#6B6B6B]">Hours Used</p>
+                      </div>
+                      <div>
+                        <span className="text-2xl font-bold text-[#6B6B6B]">{sub.includedHours}</span>
+                        <p className="text-[#6B6B6B]">Total Hours</p>
+                      </div>
                     </div>
                   </div>
-                </div>
+
+                  <button
+                    onClick={openCalendly}
+                    className="w-full px-8 py-4 bg-[#A8B89F] text-white text-lg font-semibold rounded-full hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer"
+                  >
+                    <i className="ri-calendar-line mr-2"></i>
+                    Schedule Meeting
+                  </button>
+
+                  <button
+                    onClick={clearSession}
+                    className="mt-4 text-sm text-[#6B6B6B] hover:text-[#2C2C2C] transition-colors"
+                  >
+                    Not {sub.customerName || email}? Click here
+                  </button>
+                </>
               );
             })()}
-
-            <button
-              onClick={openCalendly}
-              className="w-full px-8 py-4 bg-[#A8B89F] text-white text-lg font-semibold rounded-full hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer"
-            >
-              <i className="ri-calendar-line mr-2"></i>
-              Schedule Meeting
-            </button>
-
-            <button
-              onClick={clearSession}
-              className="mt-4 text-sm text-[#6B6B6B] hover:text-[#2C2C2C] transition-colors"
-            >
-              Not {customerData.customerName || email}? Click here
-            </button>
           </div>
         ) : status === 'no-hours' && customerData ? (
           <div className="text-center">
