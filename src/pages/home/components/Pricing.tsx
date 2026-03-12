@@ -71,7 +71,7 @@ export default function Pricing() {
         body: JSON.stringify({
           plan: planId,
           billingCycle: 'monthly',
-          ...(BLOCK_DUPLICATE_SUBSCRIPTIONS && email ? { email: email.toLowerCase().trim() } : {})
+          ...(BLOCK_DUPLICATE_SUBSCRIPTIONS && email ? { customerEmail: email.toLowerCase().trim() } : {})
         }),
       });
       const data = await response.json();
