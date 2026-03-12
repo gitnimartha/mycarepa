@@ -30,6 +30,9 @@ export default function Pricing() {
     newPlan: string;
     newPlanPrice: string;
     email: string;
+    isUpgrade?: boolean;
+    isDowngrade?: boolean;
+    periodEnd?: string;
   } | null>(null);
 
   const handleCheckout = async (planId: string) => {
@@ -89,10 +92,21 @@ export default function Pricing() {
           clearTimeout(messageTimer);
           return;
         }
+        // Handle downgrade blocked - contact support
+        if (data.contactSupport) {
+          setErrorModal({
+            show: true,
+            currentPlan: data.currentPlan,
+            message: data.message,
+          });
+          setLoading(null);
+          clearTimeout(messageTimer);
+          return;
+        }
         throw new Error(data.message || 'Checkout failed');
       }
 
-      // Handle upgrade confirmation needed
+      // Handle upgrade/downgrade confirmation needed
       if (data.needsConfirmation) {
         setConfirmModal({
           show: true,
@@ -100,14 +114,17 @@ export default function Pricing() {
           newPlan: data.newPlan,
           newPlanPrice: data.newPlanPrice,
           email: email,
+          isUpgrade: data.isUpgrade,
+          isDowngrade: data.isDowngrade,
+          periodEnd: data.periodEnd,
         });
         setLoading(null);
         clearTimeout(messageTimer);
         return;
       }
 
-      // Handle successful upgrade
-      if (data.upgraded) {
+      // Handle successful upgrade or scheduled downgrade
+      if (data.upgraded || data.downgraded) {
         setSuccessModal({
           show: true,
           message: data.message,
@@ -353,16 +370,22 @@ export default function Pricing() {
         </div>
       )}
 
-      {/* Upgrade confirmation modal */}
+      {/* Plan change confirmation modal */}
       {confirmModal?.show && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl overflow-hidden">
-            <div className="bg-gradient-to-r from-[#FFB347] to-[#FF8C42] px-8 pt-8 pb-8 text-center">
+            <div className={`${
+              confirmModal.isUpgrade
+                ? 'bg-gradient-to-r from-[#FFB347] to-[#FF8C42]'
+                : 'bg-gradient-to-r from-[#6B8E9F] to-[#5A7A8A]'
+            } px-8 pt-8 pb-8 text-center`}>
               <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3">
-                <i className="ri-arrow-up-circle-line text-3xl text-white"></i>
+                <i className={`${
+                  confirmModal.isUpgrade ? 'ri-arrow-up-circle-line' : 'ri-arrow-down-circle-line'
+                } text-3xl text-white`}></i>
               </div>
               <h3 className="font-serif text-2xl font-bold text-white">
-                Confirm Upgrade
+                Confirm {confirmModal.isUpgrade ? 'Upgrade' : 'Downgrade'}
               </h3>
               <p className="text-white/80 text-sm mt-1">Review your plan change</p>
             </div>
@@ -372,23 +395,38 @@ export default function Pricing() {
                   <p className="text-xs text-[#6B6B6B] mb-1">Current</p>
                   <p className="font-bold text-lg text-[#2C2C2C] uppercase">{confirmModal.currentPlan}</p>
                 </div>
-                <i className="ri-arrow-right-line text-2xl text-[#A8B89F]"></i>
+                <i className={`${
+                  confirmModal.isUpgrade ? 'ri-arrow-right-line' : 'ri-arrow-right-line'
+                } text-2xl text-[#A8B89F]`}></i>
                 <div className="text-center">
                   <p className="text-xs text-[#6B6B6B] mb-1">New Plan</p>
-                  <p className="font-bold text-lg text-[#A8B89F] uppercase">{confirmModal.newPlan}</p>
+                  <p className={`font-bold text-lg uppercase ${
+                    confirmModal.isUpgrade ? 'text-[#A8B89F]' : 'text-[#6B8E9F]'
+                  }`}>{confirmModal.newPlan}</p>
                   <p className="text-sm text-[#6B6B6B]">{confirmModal.newPlanPrice}</p>
                 </div>
               </div>
-              <p className="text-[#6B6B6B] text-center text-sm leading-relaxed mb-5">
-                Your billing will be prorated. You'll be charged the difference for the remainder of your billing cycle.
-              </p>
+              {confirmModal.isUpgrade ? (
+                <p className="text-[#6B6B6B] text-center text-sm leading-relaxed mb-5">
+                  Your billing will be prorated. You'll be charged the difference for the remainder of your billing cycle.
+                </p>
+              ) : (
+                <div className="bg-[#FFF8F0] rounded-xl p-4 mb-5">
+                  <p className="text-[#6B6B6B] text-center text-sm leading-relaxed">
+                    <i className="ri-calendar-line mr-1 text-[#FFB347]"></i>
+                    Your plan will change on <strong>{confirmModal.periodEnd}</strong>. You'll keep your current plan until then.
+                  </p>
+                </div>
+              )}
               <div className="flex flex-col gap-3">
                 <button
                   onClick={handleConfirmUpgrade}
-                  className="w-full px-6 py-3 bg-[#A8B89F] text-white font-semibold rounded-full hover:shadow-lg hover:-translate-y-0.5 transition-all cursor-pointer text-sm whitespace-nowrap"
+                  className={`w-full px-6 py-3 ${
+                    confirmModal.isUpgrade ? 'bg-[#A8B89F]' : 'bg-[#6B8E9F]'
+                  } text-white font-semibold rounded-full hover:shadow-lg hover:-translate-y-0.5 transition-all cursor-pointer text-sm whitespace-nowrap`}
                 >
                   <i className="ri-checkbox-circle-line mr-2"></i>
-                  Confirm Upgrade
+                  Confirm {confirmModal.isUpgrade ? 'Upgrade' : 'Downgrade'}
                 </button>
                 <button
                   onClick={() => setConfirmModal(null)}

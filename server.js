@@ -246,7 +246,8 @@ app.post('/api/create-checkout-session', async (req, res) => {
         });
 
         if (activeSubscriptions.data.length > 0) {
-          const currentSubscription = activeSubscriptions.data[0];
+          // Get full subscription object with all fields
+          const currentSubscription = await stripe.subscriptions.retrieve(activeSubscriptions.data[0].id);
           const currentPlan = currentSubscription.metadata.plan || 'unknown';
 
           // Same plan - block with helpful message
@@ -262,7 +263,21 @@ app.post('/api/create-checkout-session', async (req, res) => {
             });
           }
 
-          // Different plan - require confirmation first
+          // Different plan - determine if upgrade or downgrade
+          const planRank = { trial: 0, starter: 1, plus: 2, pro: 3 };
+          const isUpgrade = planRank[planKey] > planRank[currentPlan];
+          const isDowngrade = planRank[planKey] < planRank[currentPlan];
+
+          // Block downgrades - contact support
+          if (isDowngrade) {
+            return res.status(400).json({
+              error: 'Downgrade not available',
+              message: `To downgrade from ${currentPlan.toUpperCase()} to ${planKey.toUpperCase()}, please contact support.`,
+              currentPlan,
+              contactSupport: true,
+            });
+          }
+
           const planPrices = {
             starter: '$99/month',
             plus: '$249/month',
@@ -270,60 +285,135 @@ app.post('/api/create-checkout-session', async (req, res) => {
             trial: 'Free',
           };
 
+          // Format period end date
+          let formattedPeriodEnd = 'your next billing date';
+          try {
+            let periodEndTimestamp = currentSubscription.current_period_end;
+            // If current_period_end is not available, calculate from billing_cycle_anchor + 30 days
+            if (!periodEndTimestamp && currentSubscription.billing_cycle_anchor) {
+              periodEndTimestamp = currentSubscription.billing_cycle_anchor + (30 * 24 * 60 * 60);
+            }
+            if (periodEndTimestamp) {
+              const periodEndDate = new Date(periodEndTimestamp * 1000);
+              if (!isNaN(periodEndDate.getTime())) {
+                formattedPeriodEnd = periodEndDate.toLocaleDateString('en-US', {
+                  month: 'long',
+                  day: 'numeric',
+                  year: 'numeric',
+                });
+              }
+            }
+          } catch (e) {
+            console.error('Date formatting error:', e);
+          }
+
           if (!confirmed) {
             return res.json({
               needsConfirmation: true,
               currentPlan,
               newPlan: planKey,
               newPlanPrice: planPrices[planKey] || 'Unknown',
-              message: `Upgrade from ${currentPlan.toUpperCase()} to ${planKey.toUpperCase()}?`,
+              isUpgrade,
+              isDowngrade,
+              periodEnd: formattedPeriodEnd,
+              message: isUpgrade
+                ? `Upgrade from ${currentPlan.toUpperCase()} to ${planKey.toUpperCase()}?`
+                : `Downgrade from ${currentPlan.toUpperCase()} to ${planKey.toUpperCase()}?`,
             });
           }
 
-          // Confirmed - proceed with upgrade
+          // Confirmed - proceed with plan change
           try {
-            const subscriptionItems = currentSubscription.items.data;
-            const itemsToUpdate = [];
-
-            // Delete old items
-            for (const item of subscriptionItems) {
-              itemsToUpdate.push({ id: item.id, deleted: true });
+            // Check if subscription has an existing schedule and release it (keeps subscription active)
+            if (currentSubscription.schedule) {
+              console.log(`Releasing existing schedule ${currentSubscription.schedule} for subscription ${currentSubscription.id}`);
+              await stripe.subscriptionSchedules.release(currentSubscription.schedule);
+              // Re-fetch subscription to get updated state
+              const refreshedSub = await stripe.subscriptions.retrieve(currentSubscription.id);
+              Object.assign(currentSubscription, refreshedSub);
             }
 
-            // Add new base price
-            itemsToUpdate.push({ price: planConfig.base, quantity: 1 });
+            if (isUpgrade) {
+              // UPGRADE: Apply immediately with proration
+              const subscriptionItems = currentSubscription.items.data;
+              const itemsToUpdate = [];
 
-            // Add new hourly price if applicable
-            if (planConfig.hourly) {
-              itemsToUpdate.push({ price: planConfig.hourly });
+              for (const item of subscriptionItems) {
+                itemsToUpdate.push({ id: item.id, deleted: true });
+              }
+              // Add new plan items (no quantity needed for subscription items)
+              itemsToUpdate.push({ price: planConfig.base });
+              if (planConfig.hourly) {
+                itemsToUpdate.push({ price: planConfig.hourly });
+              }
+
+              // Calculate new included hours - carry over remaining trial hours
+              let newIncludedHours = planConfig.includedHours;
+              let bonusHours = 0;
+
+              if (currentPlan === 'trial') {
+                // Get remaining hours from trial
+                const trialIncludedHours = parseInt(currentSubscription.metadata.included_hours || '3');
+                const periodStart = currentSubscription.items?.data?.[0]?.current_period_start
+                  || currentSubscription.billing_cycle_anchor
+                  || currentSubscription.start_date;
+
+                let usedHours = 0;
+                try {
+                  if (process.env.MYCARE_METER_ID && periodStart) {
+                    const meterSummary = await stripe.billing.meters.listEventSummaries(
+                      process.env.MYCARE_METER_ID,
+                      {
+                        customer: existingCustomer.id,
+                        start_time: periodStart,
+                        end_time: Math.floor(Date.now() / 1000),
+                      }
+                    );
+                    usedHours = meterSummary.data.reduce((sum, event) => sum + parseFloat(event.aggregated_value || 0), 0);
+                  }
+                } catch (meterError) {
+                  console.log('Meter lookup error during upgrade:', meterError.message);
+                }
+
+                bonusHours = Math.max(0, trialIncludedHours - usedHours);
+                bonusHours = Math.round(bonusHours * 100) / 100; // Round to 2 decimals
+                newIncludedHours = planConfig.includedHours + bonusHours;
+
+                console.log(`Trial upgrade: ${trialIncludedHours} included - ${usedHours} used = ${bonusHours} bonus hours`);
+              }
+
+              const updatedSubscription = await stripe.subscriptions.update(currentSubscription.id, {
+                items: itemsToUpdate,
+                metadata: {
+                  plan: planKey,
+                  included_hours: newIncludedHours.toString(),
+                  upgraded_from: currentPlan,
+                  upgraded_at: new Date().toISOString(),
+                  trial_bonus_hours: bonusHours > 0 ? bonusHours.toString() : undefined,
+                },
+                proration_behavior: 'create_prorations',
+              });
+
+              console.log(`Upgraded subscription ${currentSubscription.id} from ${currentPlan} to ${planKey}`);
+
+              const bonusMessage = bonusHours > 0
+                ? ` Your ${bonusHours} remaining trial hours have been added to your plan.`
+                : '';
+
+              return res.json({
+                upgraded: true,
+                message: `Successfully upgraded from ${currentPlan.toUpperCase()} to ${planKey.toUpperCase()}!${bonusMessage}`,
+                previousPlan: currentPlan,
+                newPlan: planKey,
+                subscriptionId: updatedSubscription.id,
+                bonusHours: bonusHours > 0 ? bonusHours : undefined,
+              });
             }
-
-            // Update the subscription (prorated)
-            const updatedSubscription = await stripe.subscriptions.update(currentSubscription.id, {
-              items: itemsToUpdate,
-              metadata: {
-                plan: planKey,
-                included_hours: planConfig.includedHours.toString(),
-                upgraded_from: currentPlan,
-                upgraded_at: new Date().toISOString(),
-              },
-              proration_behavior: 'create_prorations',
-            });
-
-            console.log(`Upgraded subscription ${currentSubscription.id} from ${currentPlan} to ${planKey}`);
-
-            return res.json({
-              upgraded: true,
-              message: `Successfully upgraded from ${currentPlan.toUpperCase()} to ${planKey.toUpperCase()}!`,
-              previousPlan: currentPlan,
-              newPlan: planKey,
-              subscriptionId: updatedSubscription.id,
-            });
-          } catch (upgradeError) {
-            console.error('Error upgrading subscription:', upgradeError);
+          } catch (changeError) {
+            console.error('Error changing subscription:', changeError);
             return res.status(500).json({
-              error: 'Upgrade failed',
-              message: 'Unable to upgrade subscription. Please contact support.',
+              error: 'Plan change failed',
+              message: 'Unable to change subscription. Please contact support.',
             });
           }
         }
