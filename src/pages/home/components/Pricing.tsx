@@ -4,14 +4,14 @@ import { API_URL } from '../../../config/api';
 // ─── FEATURE TOGGLE ────────────────────────────────────────────────────
 // Set to true to require email and block users with existing subscriptions
 // Set to false to allow multiple subscriptions (original behavior)
-const BLOCK_DUPLICATE_SUBSCRIPTIONS = false;
+const BLOCK_DUPLICATE_SUBSCRIPTIONS = true;
 // ───────────────────────────────────────────────────────────────────────
 
 export default function Pricing() {
   const [loading, setLoading] = useState<string | null>(null);
   const [loadingMessage, setLoadingMessage] = useState('Connecting...');
   const [email, setEmail] = useState('');
-  const [emailError, setEmailError] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<{ planId: string; message: string } | null>(null);
   const [errorModal, setErrorModal] = useState<{
     show: boolean;
     currentPlan: string;
@@ -24,7 +24,7 @@ export default function Pricing() {
     // If duplicate blocking is enabled, validate email and check subscription
     if (BLOCK_DUPLICATE_SUBSCRIPTIONS) {
       if (!email || !email.includes('@')) {
-        setEmailError('Please enter a valid email address');
+        setEmailError({ planId, message: 'Please enter a valid email address' });
         return;
       }
 
@@ -265,11 +265,11 @@ export default function Pricing() {
                         setEmailError(null);
                       }}
                       className={`w-full px-4 py-3 border-2 ${
-                        emailError ? 'border-red-300' : 'border-gray-200'
+                        emailError?.planId === plan.id ? 'border-red-300' : 'border-gray-200'
                       } rounded-xl focus:border-[#A8B89F] focus:outline-none transition-colors text-sm`}
                     />
-                    {emailError && (
-                      <p className="text-red-500 text-xs mt-1">{emailError}</p>
+                    {emailError?.planId === plan.id && (
+                      <p className="text-red-500 text-xs mt-1">{emailError.message}</p>
                     )}
                   </div>
                 )}
