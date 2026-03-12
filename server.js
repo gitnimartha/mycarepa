@@ -190,7 +190,7 @@ const MYCARE_PRICES = {
 // Create checkout session for My Care subscriptions
 app.post('/api/create-checkout-session', async (req, res) => {
   try {
-    const { plan, customerEmail } = req.body;
+    const { plan, customerEmail, confirmed } = req.body;
     const planKey = plan.toLowerCase();
     const planConfig = MYCARE_PRICES[planKey];
 
@@ -246,12 +246,86 @@ app.post('/api/create-checkout-session', async (req, res) => {
         });
 
         if (activeSubscriptions.data.length > 0) {
-          const currentPlan = activeSubscriptions.data[0].metadata.plan || 'unknown';
-          return res.status(400).json({
-            error: 'Active subscription exists',
-            message: `You already have an active ${currentPlan.toUpperCase()} subscription. Please contact support to change your plan.`,
-            currentPlan,
-          });
+          const currentSubscription = activeSubscriptions.data[0];
+          const currentPlan = currentSubscription.metadata.plan || 'unknown';
+
+          // Same plan - block with helpful message
+          if (currentPlan === planKey) {
+            const upgradeSuggestion = planKey === 'starter' ? 'Plus' : planKey === 'plus' ? 'Pro' : null;
+            return res.status(400).json({
+              error: 'Already on this plan',
+              message: upgradeSuggestion
+                ? `You're already on the ${currentPlan.toUpperCase()} plan. Need more hours? Upgrade to ${upgradeSuggestion} for better value!`
+                : `You're already on the ${currentPlan.toUpperCase()} plan.`,
+              currentPlan,
+              suggestUpgrade: upgradeSuggestion,
+            });
+          }
+
+          // Different plan - require confirmation first
+          const planPrices = {
+            starter: '$99/month',
+            plus: '$249/month',
+            pro: '$499/month',
+            trial: 'Free',
+          };
+
+          if (!confirmed) {
+            return res.json({
+              needsConfirmation: true,
+              currentPlan,
+              newPlan: planKey,
+              newPlanPrice: planPrices[planKey] || 'Unknown',
+              message: `Upgrade from ${currentPlan.toUpperCase()} to ${planKey.toUpperCase()}?`,
+            });
+          }
+
+          // Confirmed - proceed with upgrade
+          try {
+            const subscriptionItems = currentSubscription.items.data;
+            const itemsToUpdate = [];
+
+            // Delete old items
+            for (const item of subscriptionItems) {
+              itemsToUpdate.push({ id: item.id, deleted: true });
+            }
+
+            // Add new base price
+            itemsToUpdate.push({ price: planConfig.base, quantity: 1 });
+
+            // Add new hourly price if applicable
+            if (planConfig.hourly) {
+              itemsToUpdate.push({ price: planConfig.hourly });
+            }
+
+            // Update the subscription (prorated)
+            const updatedSubscription = await stripe.subscriptions.update(currentSubscription.id, {
+              items: itemsToUpdate,
+              metadata: {
+                plan: planKey,
+                included_hours: planConfig.includedHours.toString(),
+                upgraded_from: currentPlan,
+                upgraded_at: new Date().toISOString(),
+              },
+              proration_behavior: 'create_prorations',
+            });
+
+            console.log(`Upgraded subscription ${currentSubscription.id} from ${currentPlan} to ${planKey}`);
+
+            return res.json({
+              upgraded: true,
+              message: `Successfully upgraded from ${currentPlan.toUpperCase()} to ${planKey.toUpperCase()}!`,
+              previousPlan: currentPlan,
+              newPlan: planKey,
+              subscriptionId: updatedSubscription.id,
+            });
+          } catch (upgradeError) {
+            console.error('Error upgrading subscription:', upgradeError);
+            return res.status(500).json({
+              error: 'Upgrade failed',
+              message: 'Unable to upgrade subscription. Please contact support.',
+            });
+          }
         }
 
         // Reuse existing customer

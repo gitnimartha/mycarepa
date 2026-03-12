@@ -16,44 +16,33 @@ export default function Pricing() {
     show: boolean;
     currentPlan: string;
     message: string;
+    suggestUpgrade?: string;
+  } | null>(null);
+  const [successModal, setSuccessModal] = useState<{
+    show: boolean;
+    message: string;
+    previousPlan: string;
+    newPlan: string;
+  } | null>(null);
+  const [confirmModal, setConfirmModal] = useState<{
+    show: boolean;
+    currentPlan: string;
+    newPlan: string;
+    newPlanPrice: string;
+    email: string;
   } | null>(null);
 
   const handleCheckout = async (planId: string) => {
     setEmailError(null);
     const email = emails[planId] || '';
 
-    // If duplicate blocking is enabled, validate email and check subscription
+    // If duplicate blocking is enabled, validate email format
     if (BLOCK_DUPLICATE_SUBSCRIPTIONS) {
       if (!email || !email.includes('@')) {
         setEmailError({ planId, message: 'Please enter a valid email address' });
         return;
       }
-
-      setLoading(planId);
-      setLoadingMessage('Checking subscription...');
-
-      try {
-        // Check if email already has an active subscription
-        const checkResponse = await fetch(`${API_URL}/api/check-subscription`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: email.toLowerCase().trim() }),
-        });
-        const checkData = await checkResponse.json();
-
-        if (checkData.hasSubscription) {
-          setErrorModal({
-            show: true,
-            currentPlan: checkData.plan,
-            message: `You already have an active ${checkData.plan.toUpperCase()} subscription.`,
-          });
-          setLoading(null);
-          return;
-        }
-      } catch (error) {
-        console.error('Subscription check error:', error);
-        // Continue to checkout even if check fails
-      }
+      // Note: Subscription check and upgrade logic is handled by create-checkout-session endpoint
     }
 
     setLoading(planId);
@@ -77,7 +66,19 @@ export default function Pricing() {
       const data = await response.json();
 
       if (!response.ok) {
-        // Handle active subscription error
+        // Handle "already on this plan" error
+        if (data.error === 'Already on this plan') {
+          setErrorModal({
+            show: true,
+            currentPlan: data.currentPlan,
+            message: data.message,
+            suggestUpgrade: data.suggestUpgrade,
+          });
+          setLoading(null);
+          clearTimeout(messageTimer);
+          return;
+        }
+        // Handle other subscription errors
         if (data.error === 'Active subscription exists') {
           setErrorModal({
             show: true,
@@ -91,6 +92,33 @@ export default function Pricing() {
         throw new Error(data.message || 'Checkout failed');
       }
 
+      // Handle upgrade confirmation needed
+      if (data.needsConfirmation) {
+        setConfirmModal({
+          show: true,
+          currentPlan: data.currentPlan,
+          newPlan: data.newPlan,
+          newPlanPrice: data.newPlanPrice,
+          email: email,
+        });
+        setLoading(null);
+        clearTimeout(messageTimer);
+        return;
+      }
+
+      // Handle successful upgrade
+      if (data.upgraded) {
+        setSuccessModal({
+          show: true,
+          message: data.message,
+          previousPlan: data.previousPlan,
+          newPlan: data.newPlan,
+        });
+        setLoading(null);
+        clearTimeout(messageTimer);
+        return;
+      }
+
       if (data.url) {
         setLoadingMessage('Redirecting to payment...');
         window.location.href = data.url;
@@ -101,6 +129,43 @@ export default function Pricing() {
       setLoading(null);
     } finally {
       clearTimeout(messageTimer);
+    }
+  };
+
+  const handleConfirmUpgrade = async () => {
+    if (!confirmModal) return;
+
+    setConfirmModal(null);
+    setLoading(confirmModal.newPlan);
+    setLoadingMessage('Upgrading your plan...');
+
+    try {
+      const response = await fetch(`${API_URL}/api/create-checkout-session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          plan: confirmModal.newPlan,
+          customerEmail: confirmModal.email,
+          confirmed: true,
+        }),
+      });
+      const data = await response.json();
+
+      if (data.upgraded) {
+        setSuccessModal({
+          show: true,
+          message: data.message,
+          previousPlan: data.previousPlan,
+          newPlan: data.newPlan,
+        });
+      } else {
+        alert(data.message || 'Upgrade failed. Please try again.');
+      }
+    } catch (error) {
+      console.error('Upgrade error:', error);
+      alert('Unable to upgrade. Please try again.');
+    } finally {
+      setLoading(null);
     }
   };
 
@@ -167,38 +232,170 @@ export default function Pricing() {
 
       {/* Active subscription error modal */}
       {errorModal?.show && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-[#FFF8F0] rounded-full flex items-center justify-center mx-auto mb-4">
-                <i className="ri-information-line text-3xl text-[#FFB347]"></i>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl overflow-hidden">
+            {/* Top accent banner */}
+            <div className="bg-gradient-to-r from-[#A8B89F] to-[#8FA085] px-8 pt-8 pb-8 text-center">
+              <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3">
+                <i className="ri-shield-check-line text-3xl text-white"></i>
               </div>
-              <h3 className="font-serif text-2xl font-bold text-[#2C2C2C] mb-3">
-                Already Subscribed
+              <h3 className="font-serif text-2xl font-bold text-white">
+                You're Already a Member!
               </h3>
-              <p className="text-[#6B6B6B] mb-4">
-                You already have an active <span className="font-semibold text-[#A8B89F] uppercase">{errorModal.currentPlan}</span> subscription.
-              </p>
-              <div className="bg-[#FFF8F0] rounded-xl p-4 mb-6">
-                <p className="text-sm text-[#6B6B6B]">
-                  <i className="ri-customer-service-2-line mr-2 text-[#A8B89F]"></i>
-                  To change your plan, please contact our support team and we'll help you upgrade or downgrade.
-                </p>
+              <p className="text-white/80 text-sm mt-1">Your subscription is active and running</p>
+
+              {/* Plan badge inside the header */}
+              <div className="mt-4 inline-flex items-center gap-2 bg-white/20 border border-white/40 text-white font-bold text-sm px-5 py-2 rounded-full uppercase tracking-wide">
+                <i className="ri-vip-crown-2-line text-[#FFD4C4]"></i>
+                {errorModal.currentPlan} Plan Active
               </div>
-              <div className="flex flex-col sm:flex-row gap-3">
+            </div>
+
+            {/* Body */}
+            <div className="px-8 py-6">
+              <p className="text-[#6B6B6B] text-center text-sm leading-relaxed mb-5">
+                {errorModal.message}
+              </p>
+
+              {errorModal.suggestUpgrade ? (
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <button
+                    onClick={() => setErrorModal(null)}
+                    className="flex-1 px-6 py-3 border-2 border-gray-200 text-[#6B6B6B] font-semibold rounded-full hover:bg-gray-50 transition-colors cursor-pointer text-sm whitespace-nowrap"
+                  >
+                    Close
+                  </button>
+                  <button
+                    onClick={() => {
+                      setErrorModal(null);
+                      // Scroll to the suggested plan
+                      const planElement = document.getElementById(`plan-${errorModal.suggestUpgrade?.toLowerCase()}`);
+                      planElement?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }}
+                    className="flex-1 px-6 py-3 bg-[#A8B89F] text-white font-semibold rounded-full hover:shadow-lg hover:-translate-y-0.5 transition-all text-center text-sm whitespace-nowrap cursor-pointer"
+                  >
+                    <i className="ri-arrow-up-circle-line mr-2"></i>
+                    View {errorModal.suggestUpgrade} Plan
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div className="bg-[#F7F9F6] border border-[#D6E4CF] rounded-2xl p-4 mb-6 flex items-start gap-3">
+                    <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
+                      <i className="ri-customer-service-2-line text-xl text-[#A8B89F]"></i>
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-[#2C2C2C] mb-0.5">Need to change your plan?</p>
+                      <p className="text-xs text-[#6B6B6B]">Reach out and we'll upgrade, downgrade, or pause your plan — no hassle.</p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <button
+                      onClick={() => setErrorModal(null)}
+                      className="flex-1 px-6 py-3 border-2 border-gray-200 text-[#6B6B6B] font-semibold rounded-full hover:bg-gray-50 transition-colors cursor-pointer text-sm whitespace-nowrap"
+                    >
+                      Close
+                    </button>
+                    <a
+                      href="mailto:support@mycarepa.com?subject=Plan%20Change%20Request"
+                      className="flex-1 px-6 py-3 bg-[#A8B89F] text-white font-semibold rounded-full hover:shadow-lg hover:-translate-y-0.5 transition-all text-center text-sm whitespace-nowrap"
+                    >
+                      <i className="ri-mail-send-line mr-2"></i>
+                      Contact Support
+                    </a>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Upgrade success modal */}
+      {successModal?.show && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl overflow-hidden">
+            <div className="bg-gradient-to-r from-[#A8B89F] to-[#8FA085] px-8 pt-8 pb-8 text-center">
+              <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3">
+                <i className="ri-checkbox-circle-line text-3xl text-white"></i>
+              </div>
+              <h3 className="font-serif text-2xl font-bold text-white">
+                Upgrade Successful!
+              </h3>
+              <p className="text-white/80 text-sm mt-1">Your plan has been updated</p>
+              <div className="mt-4 inline-flex items-center gap-2 bg-white/20 border border-white/40 text-white font-bold text-sm px-5 py-2 rounded-full uppercase tracking-wide">
+                <i className="ri-arrow-up-line text-[#FFD4C4]"></i>
+                {successModal.previousPlan} → {successModal.newPlan}
+              </div>
+            </div>
+            <div className="px-8 py-6">
+              <p className="text-[#6B6B6B] text-center text-sm leading-relaxed mb-5">
+                {successModal.message} Your new plan is now active and any billing adjustments will be prorated.
+              </p>
+              <div className="flex flex-col gap-3">
+                <a
+                  href="/schedule"
+                  className="w-full px-6 py-3 bg-[#A8B89F] text-white font-semibold rounded-full hover:shadow-lg hover:-translate-y-0.5 transition-all text-center text-sm whitespace-nowrap"
+                >
+                  <i className="ri-calendar-line mr-2"></i>
+                  Schedule a Meeting
+                </a>
                 <button
-                  onClick={() => setErrorModal(null)}
-                  className="flex-1 px-6 py-3 border-2 border-gray-200 text-[#6B6B6B] font-semibold rounded-full hover:bg-gray-50 transition-colors cursor-pointer"
+                  onClick={() => setSuccessModal(null)}
+                  className="w-full px-6 py-3 border-2 border-gray-200 text-[#6B6B6B] font-semibold rounded-full hover:bg-gray-50 transition-colors cursor-pointer text-sm whitespace-nowrap"
                 >
                   Close
                 </button>
-                <a
-                  href="mailto:support@mycarepa.com?subject=Plan%20Change%20Request"
-                  className="flex-1 px-6 py-3 bg-[#A8B89F] text-white font-semibold rounded-full hover:shadow-lg transition-all text-center"
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Upgrade confirmation modal */}
+      {confirmModal?.show && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl overflow-hidden">
+            <div className="bg-gradient-to-r from-[#FFB347] to-[#FF8C42] px-8 pt-8 pb-8 text-center">
+              <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3">
+                <i className="ri-arrow-up-circle-line text-3xl text-white"></i>
+              </div>
+              <h3 className="font-serif text-2xl font-bold text-white">
+                Confirm Upgrade
+              </h3>
+              <p className="text-white/80 text-sm mt-1">Review your plan change</p>
+            </div>
+            <div className="px-8 py-6">
+              <div className="flex items-center justify-center gap-4 mb-6">
+                <div className="text-center">
+                  <p className="text-xs text-[#6B6B6B] mb-1">Current</p>
+                  <p className="font-bold text-lg text-[#2C2C2C] uppercase">{confirmModal.currentPlan}</p>
+                </div>
+                <i className="ri-arrow-right-line text-2xl text-[#A8B89F]"></i>
+                <div className="text-center">
+                  <p className="text-xs text-[#6B6B6B] mb-1">New Plan</p>
+                  <p className="font-bold text-lg text-[#A8B89F] uppercase">{confirmModal.newPlan}</p>
+                  <p className="text-sm text-[#6B6B6B]">{confirmModal.newPlanPrice}</p>
+                </div>
+              </div>
+              <p className="text-[#6B6B6B] text-center text-sm leading-relaxed mb-5">
+                Your billing will be prorated. You'll be charged the difference for the remainder of your billing cycle.
+              </p>
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={handleConfirmUpgrade}
+                  className="w-full px-6 py-3 bg-[#A8B89F] text-white font-semibold rounded-full hover:shadow-lg hover:-translate-y-0.5 transition-all cursor-pointer text-sm whitespace-nowrap"
                 >
-                  <i className="ri-mail-line mr-2"></i>
-                  Contact Support
-                </a>
+                  <i className="ri-checkbox-circle-line mr-2"></i>
+                  Confirm Upgrade
+                </button>
+                <button
+                  onClick={() => setConfirmModal(null)}
+                  className="w-full px-6 py-3 border-2 border-gray-200 text-[#6B6B6B] font-semibold rounded-full hover:bg-gray-50 transition-colors cursor-pointer text-sm whitespace-nowrap"
+                >
+                  Cancel
+                </button>
               </div>
             </div>
           </div>
@@ -223,6 +420,7 @@ export default function Pricing() {
             {plans.map((plan) => (
               <div
                 key={plan.id}
+                id={`plan-${plan.id}`}
                 className={`${
                   plan.popular ? 'bg-[#FFD4C4]' : 'bg-white'
                 } border-2 ${
