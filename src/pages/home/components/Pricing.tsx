@@ -10,7 +10,7 @@ const BLOCK_DUPLICATE_SUBSCRIPTIONS = true;
 export default function Pricing() {
   const [loading, setLoading] = useState<string | null>(null);
   const [loadingMessage, setLoadingMessage] = useState('Connecting...');
-  const [email, setEmail] = useState('');
+  const [emails, setEmails] = useState<Record<string, string>>({});
   const [emailError, setEmailError] = useState<{ planId: string; message: string } | null>(null);
   const [errorModal, setErrorModal] = useState<{
     show: boolean;
@@ -20,6 +20,7 @@ export default function Pricing() {
 
   const handleCheckout = async (planId: string) => {
     setEmailError(null);
+    const email = emails[planId] || '';
 
     // If duplicate blocking is enabled, validate email and check subscription
     if (BLOCK_DUPLICATE_SUBSCRIPTIONS) {
@@ -259,10 +260,10 @@ export default function Pricing() {
                     <input
                       type="email"
                       placeholder="Enter your email"
-                      value={email}
+                      value={emails[plan.id] || ''}
                       onChange={(e) => {
-                        setEmail(e.target.value);
-                        setEmailError(null);
+                        setEmails(prev => ({ ...prev, [plan.id]: e.target.value }));
+                        if (emailError?.planId === plan.id) setEmailError(null);
                       }}
                       className={`w-full px-4 py-3 border-2 ${
                         emailError?.planId === plan.id ? 'border-red-300' : 'border-gray-200'
