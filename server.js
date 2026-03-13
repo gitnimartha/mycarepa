@@ -152,10 +152,8 @@ app.use((req, res, next) => {
   next();
 });
 
-// Serve static files in production
-if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, 'dist')));
-}
+// Static files served by Readdy, not Railway
+// Railway serves API only
 
 // My Care Personal Assistant - Price Configuration
 const MYCARE_PRICES = {
@@ -1294,13 +1292,8 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'healthy', timestamp: new Date().toISOString() });
 });
 
-// Serve React app for all other routes in production (SPA catch-all)
-if (process.env.NODE_ENV === 'production') {
-
-app.use((req, res) => {
-  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
-});
-}
+// API-only mode - no static file serving
+// Frontend served by Readdy at mycarepersonalassistant.com
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {

@@ -2,7 +2,7 @@
 // These are public values - safe to hardcode
 
 // Railway backend URL
-export const API_URL = import.meta.env.VITE_API_URL || 'https://mycarepa-production-2432.up.railway.app'
+export const API_URL = import.meta.env.VITE_API_URL || 'https://api.mypersonalcareassistant.com'
 
 // Stripe publishable key (public)
 export const STRIPE_PUBLISHABLE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_test_51T3mcj10nvnTVAogvr6gjBIFTmeurtama301mYA5gYGUfU7rE5hotIa45NGoUEYAdI81idnOGqAT5MJOvjDMaOHv00BNaUatbj'
