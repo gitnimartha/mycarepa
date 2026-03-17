@@ -29,25 +29,26 @@ setInterval(() => {
   }
 }, 5 * 60 * 1000);
 
-// Helper: Find customer by email
+// Helper: Find customer by email (case-insensitive using Stripe Search API)
 async function findCustomerByEmail(email) {
   const normalizedEmail = email.toLowerCase().trim();
 
-  const result = await stripe.customers.list({
-    email: normalizedEmail,
+  // Use search API for case-insensitive matching
+  const result = await stripe.customers.search({
+    query: `email:"${normalizedEmail}"`,
     limit: 1,
   });
 
   return result.data.length > 0 ? result.data[0] : null;
 }
 
-// Helper: Find ALL customers by email
+// Helper: Find ALL customers by email (case-insensitive using Stripe Search API)
 async function findAllCustomersByEmail(email) {
   const normalizedEmail = email.toLowerCase().trim();
 
-  // Simple list - Stripe returns all customers with exact email match
-  const result = await stripe.customers.list({
-    email: normalizedEmail,
+  // Use search API for case-insensitive matching
+  const result = await stripe.customers.search({
+    query: `email:"${normalizedEmail}"`,
     limit: 100,
   });
 
