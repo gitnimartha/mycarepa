@@ -503,8 +503,8 @@ export default function AssistantDashboardPage() {
                           </div>
                         </div>
 
-                        {/* Period */}
-                        {(displayData?.periodStartDate || displayData?.periodEndDate) && (
+                        {/* Period - hide for Trial since it's one-time, not recurring */}
+                        {displayData?.plan !== 'trial' && (displayData?.periodStartDate || displayData?.periodEndDate) && (
                           <div className="flex items-center gap-2 text-xs text-[#6B6B6B] bg-[#F7F5F2] rounded-xl px-4 py-3">
                             <i className="ri-calendar-line text-[#A8B89F]"></i>
                             <span>
