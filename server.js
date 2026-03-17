@@ -425,9 +425,11 @@ app.post('/api/create-checkout-session', async (req, res) => {
       }
     }
 
-    // For free trial, allow trial period
+    // For free trial - one-time allocation, doesn't renew
     if (planKey === 'trial') {
       sessionConfig.subscription_data.trial_period_days = 30;
+      // Cancel at end of first period so it doesn't renew monthly
+      sessionConfig.subscription_data.cancel_at_period_end = true;
     }
 
     const session = await stripe.checkout.sessions.create(sessionConfig);
@@ -1089,6 +1091,7 @@ app.post('/api/admin/create-trial-user', async (req, res) => {
     const subscription = await stripe.subscriptions.create({
       customer: customer.id,
       items: [{ price: trialPriceId }],
+      cancel_at_period_end: true, // Trial is one-time, doesn't renew
       metadata: {
         plan: 'trial',
         included_hours: trialHours.toString(),
