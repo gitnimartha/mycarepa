@@ -1291,6 +1291,167 @@ app.post('/api/upgrade-subscription', async (req, res) => {
   }
 });
 
+// ============================================
+// VIDEO PROGRESS TRACKING
+// ============================================
+// Persisted in Stripe customer metadata under `video_progress` as compact JSON:
+//   { "<videoId>": { "t": currentTimeSec, "d": durationSec, "c": 0|1 }, ... }
+// 500-char metadata limit caps us at ~15-20 tracked videos per customer.
+
+const VIDEO_PROGRESS_KEY = 'video_progress';
+const VIDEO_PROGRESS_MAX = 20;
+const VIDEO_PROGRESS_MAX_BYTES = 480;
+const VIDEO_COMPLETE_THRESHOLD = 0.95;
+
+function decodeVideoProgress(raw) {
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function expandVideo(compact) {
+  const duration = compact.d || 0;
+  const currentTime = compact.t || 0;
+  return {
+    currentTime,
+    duration,
+    progress: duration > 0 ? Math.round((currentTime / duration) * 1000) / 1000 : 0,
+    completed: compact.c === 1,
+  };
+}
+
+function deriveOverallStatus(compactMap) {
+  const entries = Object.values(compactMap);
+  if (entries.length === 0) return 'not_started';
+  if (entries.every((v) => v.c === 1)) return 'completed';
+  return 'in_progress';
+}
+
+function buttonTextFor(status) {
+  if (status === 'completed') return 'Watch Again';
+  if (status === 'in_progress') return 'Continue Learning';
+  return 'Start Learning';
+}
+
+// Save (or update) video progress for the user identified by email
+app.post('/api/video-progress', async (req, res) => {
+  try {
+    const { email, videoId, currentTime, duration, completed } = req.body;
+
+    if (!email || !videoId) {
+      return res.status(400).json({ error: 'email and videoId are required' });
+    }
+    const ct = Number(currentTime);
+    const dur = Number(duration);
+    if (!Number.isFinite(ct) || ct < 0 || !Number.isFinite(dur) || dur < 0) {
+      return res.status(400).json({ error: 'currentTime and duration must be non-negative numbers' });
+    }
+
+    const customer = await findCustomerByEmail(email);
+    if (!customer) {
+      return res.status(404).json({ error: 'No customer found for this email' });
+    }
+
+    const videos = decodeVideoProgress(customer.metadata[VIDEO_PROGRESS_KEY]);
+    const isCompleted = completed === true || (dur > 0 && ct / dur >= VIDEO_COMPLETE_THRESHOLD);
+
+    videos[videoId] = {
+      t: Math.round(ct),
+      d: Math.round(dur),
+      c: isCompleted ? 1 : 0,
+    };
+
+    // Trim oldest if we exceed the per-customer cap (Object key order = insertion order)
+    const keys = Object.keys(videos);
+    if (keys.length > VIDEO_PROGRESS_MAX) {
+      for (const k of keys.slice(0, keys.length - VIDEO_PROGRESS_MAX)) {
+        delete videos[k];
+      }
+    }
+
+    const encoded = JSON.stringify(videos);
+    if (encoded.length > VIDEO_PROGRESS_MAX_BYTES) {
+      return res.status(413).json({ error: 'Too many tracked videos for this customer' });
+    }
+
+    await stripe.customers.update(customer.id, {
+      metadata: { ...customer.metadata, [VIDEO_PROGRESS_KEY]: encoded },
+    });
+
+    const status = deriveOverallStatus(videos);
+    res.json({
+      success: true,
+      customerId: customer.id,
+      videoId,
+      ...expandVideo(videos[videoId]),
+      status,
+      buttonText: buttonTextFor(status),
+    });
+  } catch (error) {
+    console.error('Error saving video progress:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Read video progress. Returns overall status + buttonText so a button on any
+// page can render directly without computing state.
+// Optional ?videoId= scopes status/buttonText to a single video.
+app.get('/api/video-progress', async (req, res) => {
+  try {
+    const email = req.query.email;
+    const videoId = req.query.videoId;
+
+    if (!email) {
+      return res.status(400).json({ error: 'email query param is required' });
+    }
+
+    const customer = await findCustomerByEmail(email);
+    if (!customer) {
+      // Consumer-friendly: no customer = no progress yet
+      return res.json({
+        email,
+        status: 'not_started',
+        buttonText: buttonTextFor('not_started'),
+        videos: {},
+      });
+    }
+
+    const compact = decodeVideoProgress(customer.metadata[VIDEO_PROGRESS_KEY]);
+    const videos = Object.fromEntries(
+      Object.entries(compact).map(([id, v]) => [id, expandVideo(v)])
+    );
+
+    if (videoId) {
+      const v = videos[videoId];
+      const status = !v ? 'not_started' : v.completed ? 'completed' : 'in_progress';
+      return res.json({
+        email: customer.email,
+        customerId: customer.id,
+        videoId,
+        status,
+        buttonText: buttonTextFor(status),
+        ...(v || {}),
+      });
+    }
+
+    const status = deriveOverallStatus(compact);
+    res.json({
+      email: customer.email,
+      customerId: customer.id,
+      status,
+      buttonText: buttonTextFor(status),
+      videos,
+    });
+  } catch (error) {
+    console.error('Error fetching video progress:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ status: 'healthy', timestamp: new Date().toISOString() });
@@ -1312,5 +1473,7 @@ app.listen(PORT, () => {
   console.log('  GET  /api/session/:sessionId - Get session details');
   console.log('  POST /api/webhook - Stripe webhook handler');
   console.log('  POST /api/admin/create-trial-user - Create legacy trial user (admin)');
+  console.log('  POST /api/video-progress - Save video progress for a customer');
+  console.log('  GET  /api/video-progress - Get video progress + buttonText');
   console.log('  GET  /api/health - Health check');
 });
