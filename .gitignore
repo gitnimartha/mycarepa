@@ -21,3 +21,11 @@ dist
 # OS files
 .DS_Store
 Thumbs.db
+
+# Trial user import results (contain customer PII)
+scripts/trial-users-success-*.csv
+scripts/trial-users-errors-*.csv
+
+# Local Railway env helpers (contain Stripe secret keys)
+scripts/setup-railway-env.bat
+scripts/toggle-stripe.bat

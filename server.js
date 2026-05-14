@@ -13,6 +13,11 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
+// Secondary Stripe account used by checkout-bridge for trial customers
+const bridgeStripe = process.env.BRIDGE_STRIPE_SECRET_KEY
+  ? new Stripe(process.env.BRIDGE_STRIPE_SECRET_KEY)
+  : null;
+
 // Initialize Resend
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
@@ -841,6 +846,102 @@ app.post('/api/verify-customer', async (req, res) => {
   }
 });
 
+// Verify a trial customer created by checkout-bridge (lives on secondary Stripe account).
+// Kept separate from /api/verify-customer so the original flow is untouched.
+// Differences from /api/verify-customer:
+//   - Uses BRIDGE_STRIPE_SECRET_KEY instead of STRIPE_SECRET_KEY
+//   - Expiry stored in milliseconds (bridge writes Date.now() + ms), not seconds
+//   - Does not require an active subscription (bridge uses one-time invoice flow)
+app.post('/api/verify-trial-customer', async (req, res) => {
+  try {
+    if (!bridgeStripe) {
+      return res.status(500).json({ error: 'Bridge Stripe not configured. Set BRIDGE_STRIPE_SECRET_KEY env var.' });
+    }
+
+    const { email, code } = req.body;
+    if (!email || !code) {
+      return res.status(400).json({ error: 'Email and verification code are required' });
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+    const search = await bridgeStripe.customers.search({
+      query: `email:"${normalizedEmail}"`,
+      limit: 1,
+    });
+    const customer = search.data[0];
+
+    if (!customer) {
+      return res.status(404).json({
+        error: 'No trial account found',
+        message: 'No trial account found for this email.'
+      });
+    }
+
+    const storedCode = customer.metadata.verification_code;
+    const storedExpiry = parseInt(customer.metadata.verification_expiry || '0');
+    const attempts = parseInt(customer.metadata.verification_attempts || '0');
+
+    if (!storedCode) {
+      return res.status(400).json({
+        error: 'Invalid or expired code',
+        message: 'Please request a new verification code.'
+      });
+    }
+
+    // Bridge writes expiry in milliseconds
+    if (Date.now() > storedExpiry) {
+      await bridgeStripe.customers.update(customer.id, {
+        metadata: { verification_code: '', verification_expiry: '', verification_attempts: '' }
+      });
+      return res.status(400).json({
+        error: 'Code expired',
+        message: 'Your verification code has expired. Please request a new one.'
+      });
+    }
+
+    if (attempts >= 5) {
+      await bridgeStripe.customers.update(customer.id, {
+        metadata: { verification_code: '', verification_expiry: '', verification_attempts: '' }
+      });
+      return res.status(400).json({
+        error: 'Too many attempts',
+        message: 'Too many incorrect attempts. Please request a new code.'
+      });
+    }
+
+    if (storedCode !== code) {
+      await bridgeStripe.customers.update(customer.id, {
+        metadata: { verification_attempts: (attempts + 1).toString() }
+      });
+      return res.status(400).json({
+        error: 'Invalid code',
+        message: 'Incorrect verification code. Please try again.'
+      });
+    }
+
+    await bridgeStripe.customers.update(customer.id, {
+      metadata: {
+        verification_code: '',
+        verification_expiry: '',
+        verification_attempts: '',
+        email_verified: 'true'
+      }
+    });
+
+    res.json({
+      success: true,
+      customerId: customer.id,
+      email: customer.email,
+      name: customer.name,
+      plan: customer.metadata.plan || 'trial',
+      message: 'Verified successfully.'
+    });
+  } catch (error) {
+    console.error('Error verifying trial customer:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ============================================
 // ASSISTANT DASHBOARD ENDPOINTS
 // ============================================
@@ -1337,9 +1438,25 @@ function buttonTextFor(status) {
   return 'Start Learning';
 }
 
+// Video progress lives on the secondary "bridge" Stripe account (trial users).
+// It is intentionally NOT read from or written to the primary account.
+async function findBridgeCustomerByEmail(email) {
+  if (!bridgeStripe) return null;
+  const normalized = email.toLowerCase().trim();
+  const result = await bridgeStripe.customers.search({
+    query: `email:"${normalized}"`,
+    limit: 1,
+  });
+  return result.data.length > 0 ? result.data[0] : null;
+}
+
 // Save (or update) video progress for the user identified by email
 app.post('/api/video-progress', async (req, res) => {
   try {
+    if (!bridgeStripe) {
+      return res.status(500).json({ error: 'Bridge Stripe not configured. Set BRIDGE_STRIPE_SECRET_KEY env var.' });
+    }
+
     const { email, videoId, currentTime, duration, completed } = req.body;
 
     if (!email || !videoId) {
@@ -1351,7 +1468,7 @@ app.post('/api/video-progress', async (req, res) => {
       return res.status(400).json({ error: 'currentTime and duration must be non-negative numbers' });
     }
 
-    const customer = await findCustomerByEmail(email);
+    const customer = await findBridgeCustomerByEmail(email);
     if (!customer) {
       return res.status(404).json({ error: 'No customer found for this email' });
     }
@@ -1378,7 +1495,7 @@ app.post('/api/video-progress', async (req, res) => {
       return res.status(413).json({ error: 'Too many tracked videos for this customer' });
     }
 
-    await stripe.customers.update(customer.id, {
+    await bridgeStripe.customers.update(customer.id, {
       metadata: { ...customer.metadata, [VIDEO_PROGRESS_KEY]: encoded },
     });
 
@@ -1402,6 +1519,10 @@ app.post('/api/video-progress', async (req, res) => {
 // Optional ?videoId= scopes status/buttonText to a single video.
 app.get('/api/video-progress', async (req, res) => {
   try {
+    if (!bridgeStripe) {
+      return res.status(500).json({ error: 'Bridge Stripe not configured. Set BRIDGE_STRIPE_SECRET_KEY env var.' });
+    }
+
     const email = req.query.email;
     const videoId = req.query.videoId;
 
@@ -1409,7 +1530,7 @@ app.get('/api/video-progress', async (req, res) => {
       return res.status(400).json({ error: 'email query param is required' });
     }
 
-    const customer = await findCustomerByEmail(email);
+    const customer = await findBridgeCustomerByEmail(email);
     if (!customer) {
       // Consumer-friendly: no customer = no progress yet
       return res.json({
@@ -1467,6 +1588,7 @@ app.listen(PORT, () => {
   console.log('\nAvailable endpoints:');
   console.log('  POST /api/create-checkout-session - Create subscription checkout');
   console.log('  POST /api/verify-customer - Verify customer email and check usage');
+  console.log('  POST /api/verify-trial-customer - Verify trial customer on secondary Stripe (bridge)');
   console.log('  POST /api/report-usage - Report hours used');
   console.log('  GET  /api/usage/:customerId - Get customer usage');
   console.log('  GET  /api/prices - Get available plans');
