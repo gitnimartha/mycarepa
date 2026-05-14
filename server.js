@@ -846,6 +846,75 @@ app.post('/api/verify-customer', async (req, res) => {
   }
 });
 
+// Send a verification code to a trial customer (lives on secondary Stripe account).
+// Mirrors /api/send-verification-code but targets the bridge account and skips
+// the active-subscription check (trial users use a one-time invoice flow).
+// Expiry is written in milliseconds to match what /api/verify-trial-customer reads.
+app.post('/api/send-trial-verification-code', async (req, res) => {
+  try {
+    if (!bridgeStripe) {
+      return res.status(500).json({ error: 'Bridge Stripe not configured. Set BRIDGE_STRIPE_SECRET_KEY env var.' });
+    }
+
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    const customer = await findBridgeCustomerByEmail(email);
+    if (!customer) {
+      return res.status(404).json({
+        error: 'No trial account found',
+        message: 'No trial account found for this email.'
+      });
+    }
+
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiry = Date.now() + 10 * 60 * 1000;
+
+    await bridgeStripe.customers.update(customer.id, {
+      metadata: {
+        verification_code: code,
+        verification_expiry: expiry.toString(),
+        verification_attempts: '0'
+      }
+    });
+
+    if (resend) {
+      await resend.emails.send({
+        from: process.env.RESEND_FROM_EMAIL || 'MyCarePA <onboarding@resend.dev>',
+        to: customer.email,
+        subject: 'Your Legal Masterclass Verification Code',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 20px;">
+            <div style="text-align: center; margin-bottom: 20px;">
+              <h1 style="color: #A8B89F; margin: 0;">MyCarePA</h1>
+            </div>
+            <div style="background: #FFF8F0; border-radius: 12px; padding: 30px; text-align: center;">
+              <p style="color: #6B6B6B; margin-bottom: 20px;">Your verification code is:</p>
+              <div style="font-size: 36px; font-weight: bold; color: #2C2C2C; letter-spacing: 8px; margin-bottom: 20px;">${code}</div>
+              <p style="color: #6B6B6B; font-size: 14px;">This code expires in 10 minutes.</p>
+            </div>
+            <p style="color: #999; font-size: 12px; text-align: center; margin-top: 20px;">
+              If you didn't request this code, please ignore this email.
+            </p>
+          </div>
+        `,
+      });
+    } else {
+      console.log(`[DEV] Trial verification code for ${customer.email}: ${code}`);
+    }
+
+    res.json({
+      success: true,
+      message: 'Verification code sent to your email.',
+    });
+  } catch (error) {
+    console.error('Error sending trial verification code:', error);
+    res.status(500).json({ error: 'Failed to send verification code. Please try again.' });
+  }
+});
+
 // Verify a trial customer created by checkout-bridge (lives on secondary Stripe account).
 // Kept separate from /api/verify-customer so the original flow is untouched.
 // Differences from /api/verify-customer:
@@ -1588,6 +1657,7 @@ app.listen(PORT, () => {
   console.log('\nAvailable endpoints:');
   console.log('  POST /api/create-checkout-session - Create subscription checkout');
   console.log('  POST /api/verify-customer - Verify customer email and check usage');
+  console.log('  POST /api/send-trial-verification-code - Send code to trial customer on secondary Stripe (bridge)');
   console.log('  POST /api/verify-trial-customer - Verify trial customer on secondary Stripe (bridge)');
   console.log('  POST /api/report-usage - Report hours used');
   console.log('  GET  /api/usage/:customerId - Get customer usage');
